@@ -605,11 +605,4 @@ export const commandHelp = {
     examples: ['`profile`', '`profile @User`'],
     permissions: 'Aucune',
   },
-
-  prevname: {
-    description: 'Affiche les anciens pseudos d\'un utilisateur',
-    usage: ['`prevname [@utilisateur|id]`'],
-    examples: ['`prevname`', '`prevname @User`', '`prevname 123456789`'],
-    permissions: 'Aucune',
-  },
 };

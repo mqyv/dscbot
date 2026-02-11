@@ -80,7 +80,7 @@ export default {
       'Booster Role': ['boosterrole', 'boost'],
       'Messages': ['welcome', 'goodbye', 'sticky', 'autoresponder', 'imageonly'],
       'Filtres': ['filter'],
-      'Informations': ['help', 'info', 'userinfo', 'profile', 'prevname', 'serverinfo', 'botinfo', 'channelinfo', 'roleinfo', 'invite', 'snipe', 'firstmessage'],
+      'Informations': ['help', 'info', 'userinfo', 'profile', 'serverinfo', 'botinfo', 'channelinfo', 'roleinfo', 'invite', 'snipe', 'firstmessage'],
       'Modération': ['kick', 'ban', 'unban', 'timeout', 'warn', 'clear', 'roleall', 'hide', 'unhide', 'lock', 'unlock', 'hideall', 'pin', 'unpin'],
       'Utilitaires': ['avatar', 'emoji', 'emojis', 'steal', 'extractemojis', 'ping', 'say', 'poll', 'uptime', 'calc', 'random', 'renew', 'webhook'],
       'Logs': ['logs'],
