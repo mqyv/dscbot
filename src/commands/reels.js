@@ -1,11 +1,7 @@
 import { SlashCommandBuilder, AttachmentBuilder } from 'discord.js';
 import { createEmbed } from '../utils/embeds.js';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { existsSync, unlinkSync, statSync } from 'fs';
+import { writeFileSync, unlinkSync, existsSync } from 'fs';
 import { join } from 'path';
-
-const execAsync = promisify(exec);
 
 export default {
   data: new SlashCommandBuilder()
@@ -36,26 +32,57 @@ export default {
     const outputPath = join(process.cwd(), 'temp', `reels_${timestamp}.mp4`);
 
     try {
-      // Télécharger la vidéo avec yt-dlp
-      await execAsync(`yt-dlp -f "best[ext=mp4]" -o "${outputPath}" "${url}"`);
+      // Utiliser l'API instavideosave.net
+      const apiUrl = `https://v3.instavideosave.net/?url=${encodeURIComponent(url)}`;
+      
+      const response = await fetch(apiUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
 
-      // Vérifier que le fichier existe
-      if (!existsSync(outputPath)) {
-        throw new Error('Le fichier n\'a pas été téléchargé');
+      if (!response.ok) {
+        throw new Error('API non disponible');
       }
 
-      // Vérifier la taille (limite Discord : 25MB sans boost, 50MB avec boost)
-      const stats = statSync(outputPath);
-      const sizeMB = stats.size / (1024 * 1024);
+      const html = await response.text();
+      
+      // Extraire l'URL de la vidéo depuis la réponse HTML
+      const videoUrlMatch = html.match(/"url":"(https:\/\/[^"]+\.mp4[^"]*)"/);
+      
+      if (!videoUrlMatch) {
+        throw new Error('Impossible d\'extraire la vidéo');
+      }
 
+      const videoUrl = videoUrlMatch[1].replace(/\\u0026/g, '&');
+
+      // Télécharger la vidéo
+      const videoResponse = await fetch(videoUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
+
+      if (!videoResponse.ok) {
+        throw new Error('Impossible de télécharger la vidéo');
+      }
+
+      const videoBuffer = await videoResponse.arrayBuffer();
+      const buffer = Buffer.from(videoBuffer);
+
+      // Vérifier la taille (limite Discord : 25MB)
+      const sizeMB = buffer.length / (1024 * 1024);
+      
       if (sizeMB > 25) {
-        unlinkSync(outputPath);
         const errorEmbed = createEmbed('error', {
           title: 'Vidéo trop volumineuse',
-          description: `La vidéo fait ${sizeMB.toFixed(2)}MB. Discord limite à 25MB.\n\nUtilisez ce lien : ${url.replace('instagram.com', 'ddinstagram.com')}`,
+          description: `La vidéo fait ${sizeMB.toFixed(2)}MB. Discord limite à 25MB.\n\nLien direct : ${url.replace('instagram.com', 'ddinstagram.com')}`,
         });
         return interaction.editReply({ embeds: [errorEmbed] });
       }
+
+      // Sauvegarder temporairement
+      writeFileSync(outputPath, buffer);
 
       // Créer l'attachment et envoyer
       const attachment = new AttachmentBuilder(outputPath, { name: 'reels.mp4' });
@@ -82,7 +109,7 @@ export default {
 
       const errorEmbed = createEmbed('error', {
         title: 'Erreur',
-        description: `Impossible de télécharger le reels: ${error.message}\n\nAssurez-vous que yt-dlp est installé sur le serveur.\nOu utilisez : ${url.replace('instagram.com', 'ddinstagram.com')}`,
+        description: `Impossible de télécharger le reels: ${error.message}\n\nEssayez avec : ${url.replace('instagram.com', 'ddinstagram.com')}`,
       });
       await interaction.editReply({ embeds: [errorEmbed] });
     }
