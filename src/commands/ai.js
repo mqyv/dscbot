@@ -86,7 +86,7 @@ export default {
           conversations.set(interaction.user.id, [
             {
               role: 'system',
-              content: 'Tu es un pote sur Discord, pas un assistant robotique. Tu parles de manière décontractée et familière. Tu peux dire "mec", "frr", "gros", utiliser de l\'argot, être un peu vulgaire quand c\'est drôle, et chambrer gentiment. Tu utilises des emojis. Tu restes utile mais sans être trop formel ou politiquement correct. Bref, tu parles comme un vrai pote, pas comme ChatGPT.'
+              content: 'Tu es un pote sur Discord, vraiment décontracté. Tu parles comme les jeunes : argot, verlan, vulgarité, tout est permis. Adapte-toi à la façon de parler de la personne et utilise les mêmes expressions qu\'elle. Si elle dit "frr", tu dis "frr". Si elle dit "wsh", tu dis "wsh". Si elle est vulgaire, sois vulgaire aussi. Pas de filtre, pas de politesse excessive, juste un vrai dialogue de pote. Utilise des emojis genre 💀😭🔥. Sois direct, drôle, et n\'hésite pas à chambrer ou à dire des trucs choquants si c\'est pour rire. Tu es là pour kiffer, pas pour être sage.'
             }
           ]);
         }
@@ -121,57 +121,19 @@ export default {
           ]);
         }
 
-        // Découper la réponse si elle est trop longue (limite Discord : 4096 caractères)
-        const maxLength = 4000;
+        // Découper la réponse si elle est trop longue (limite Discord : 2000 caractères par message)
+        const maxLength = 1900;
         if (response.length > maxLength) {
           const chunks = response.match(new RegExp(`.{1,${maxLength}}`, 'g'));
           
-          const embed = new EmbedBuilder()
-            .setColor('#5865F2')
-            .setAuthor({
-              name: interaction.user.username,
-              iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-            })
-            .setTitle('Question')
-            .setDescription(question.length > 256 ? question.substring(0, 253) + '...' : question)
-            .addFields({
-              name: 'Réponse (Partie 1)',
-              value: chunks[0]
-            })
-            .setFooter({ text: 'Propulsé par Groq AI • llama-3.3-70b' })
-            .setTimestamp();
-
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(`**${interaction.user.username}:** ${question}\n\n${chunks[0]}`);
 
           // Envoyer les parties suivantes
           for (let i = 1; i < chunks.length; i++) {
-            const followUpEmbed = new EmbedBuilder()
-              .setColor('#5865F2')
-              .addFields({
-                name: `Réponse (Partie ${i + 1})`,
-                value: chunks[i]
-              })
-              .setTimestamp();
-
-            await interaction.followUp({ embeds: [followUpEmbed] });
+            await interaction.followUp(chunks[i]);
           }
         } else {
-          const embed = new EmbedBuilder()
-            .setColor('#5865F2')
-            .setAuthor({
-              name: interaction.user.username,
-              iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-            })
-            .setTitle('Question')
-            .setDescription(question.length > 256 ? question.substring(0, 253) + '...' : question)
-            .addFields({
-              name: 'Réponse',
-              value: response
-            })
-            .setFooter({ text: 'Propulsé par Groq AI • llama-3.3-70b' })
-            .setTimestamp();
-
-          await interaction.editReply({ embeds: [embed] });
+          await interaction.editReply(`**${interaction.user.username}:** ${question}\n\n${response}`);
         }
 
       } catch (error) {
