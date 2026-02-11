@@ -61,9 +61,15 @@ export function saveGuildData(guildId, data) {
 // Obtenir les données d'un utilisateur
 export function getUserData(userId) {
   const db = loadDB();
+  if (!db.users) {
+    db.users = {};
+  }
   if (!db.users[userId]) {
     db.users[userId] = {
       prefix: null,
+      previousNames: [],
+      warnings: [],
+      createdAt: new Date().toISOString(),
     };
     saveDB(db);
   }
@@ -73,6 +79,9 @@ export function getUserData(userId) {
 // Sauvegarder les données d'un utilisateur
 export function saveUserData(userId, data) {
   const db = loadDB();
+  if (!db.users) {
+    db.users = {};
+  }
   db.users[userId] = data;
   saveDB(db);
 }
@@ -127,34 +136,6 @@ export function removeFromWhitelist(userId) {
 // Vérifier si un utilisateur est whitelisté
 export function isWhitelisted(userId) {
   return getWhitelist().includes(userId);
-}
-
-// ===== GESTION DES DONNÉES UTILISATEUR =====
-
-// Obtenir les données d'un utilisateur
-export function getUserData(userId) {
-  const db = loadDB();
-  if (!db.users) {
-    db.users = {};
-  }
-  if (!db.users[userId]) {
-    db.users[userId] = {
-      previousNames: [],
-      warnings: [],
-      createdAt: new Date().toISOString(),
-    };
-  }
-  return db.users[userId];
-}
-
-// Sauvegarder les données d'un utilisateur
-export function saveUserData(userId, userData) {
-  const db = loadDB();
-  if (!db.users) {
-    db.users = {};
-  }
-  db.users[userId] = userData;
-  saveDB(db);
 }
 
 // Ajouter un ancien pseudo à l'historique
