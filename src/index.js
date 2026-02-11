@@ -4,7 +4,7 @@ import { readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createEmbed } from './utils/embeds.js';
-import { getPrefix, isWhitelisted, getGuildData } from './utils/database.js';
+import { getPrefix, isWhitelisted, getGuildData, addPreviousName } from './utils/database.js';
 
 config();
 
@@ -105,6 +105,19 @@ client.on(Events.GuildCreate, guild => {
   console.log(`   Serveur: ${guild.name} (${guild.id})`);
   console.log(`   Membres: ${guild.memberCount}`);
   console.log(`   Propriétaire: ${guild.ownerId}\n`);
+});
+
+// Événement : Changement de pseudo
+client.on(Events.GuildMemberUpdate, (oldMember, newMember) => {
+  if (oldMember.user.username !== newMember.user.username) {
+    addPreviousName(newMember.user.id, oldMember.user.username);
+    console.log(`Pseudo changé: ${oldMember.user.username} -> ${newMember.user.username}`);
+  }
+});
+
+// Événement : Utilisateur rejoint un serveur (enregistrer le pseudo actuel)
+client.on(Events.GuildMemberAdd, member => {
+  addPreviousName(member.user.id, member.user.username);
 });
 
 // Événement : Bot quitte un serveur

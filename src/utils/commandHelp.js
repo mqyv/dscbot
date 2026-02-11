@@ -600,17 +600,16 @@ export const commandHelp = {
   },
 
   profile: {
-    description: 'Affiche le profil complet d\'un utilisateur avec toutes les informations',
-    usage: [
-      '`profile` - Voir votre propre profil',
-      '`profile <@utilisateur>` - Voir le profil d\'un utilisateur',
-      '`profile <id>` - Voir le profil par ID',
-    ],
-    examples: [
-      '`profile`',
-      '`profile @Utilisateur`',
-      '`profile 123456789012345678`',
-    ],
+    description: 'Affiche le profil d\'un utilisateur',
+    usage: ['`profile [@utilisateur|id]`'],
+    examples: ['`profile`', '`profile @User`'],
+    permissions: 'Aucune',
+  },
+
+  prevname: {
+    description: 'Affiche les anciens pseudos d\'un utilisateur',
+    usage: ['`prevname [@utilisateur|id]`'],
+    examples: ['`prevname`', '`prevname @User`', '`prevname 123456789`'],
     permissions: 'Aucune',
   },
 };

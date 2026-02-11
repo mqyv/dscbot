@@ -128,3 +128,51 @@ export function removeFromWhitelist(userId) {
 export function isWhitelisted(userId) {
   return getWhitelist().includes(userId);
 }
+
+// ===== GESTION DES DONNÉES UTILISATEUR =====
+
+// Obtenir les données d'un utilisateur
+export function getUserData(userId) {
+  const db = loadDB();
+  if (!db.users) {
+    db.users = {};
+  }
+  if (!db.users[userId]) {
+    db.users[userId] = {
+      previousNames: [],
+      warnings: [],
+      createdAt: new Date().toISOString(),
+    };
+  }
+  return db.users[userId];
+}
+
+// Sauvegarder les données d'un utilisateur
+export function saveUserData(userId, userData) {
+  const db = loadDB();
+  if (!db.users) {
+    db.users = {};
+  }
+  db.users[userId] = userData;
+  saveDB(db);
+}
+
+// Ajouter un ancien pseudo à l'historique
+export function addPreviousName(userId, username) {
+  const userData = getUserData(userId);
+  
+  // Vérifier si ce n'est pas déjà le dernier pseudo enregistré
+  if (userData.previousNames.length > 0) {
+    const lastEntry = userData.previousNames[userData.previousNames.length - 1];
+    if (lastEntry.name === username) {
+      return; // Pas besoin d'ajouter le même pseudo
+    }
+  }
+  
+  userData.previousNames.push({
+    name: username,
+    timestamp: new Date().toISOString(),
+  });
+  
+  saveUserData(userId, userData);
+}
