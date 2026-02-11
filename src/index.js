@@ -4,7 +4,7 @@ import { readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createEmbed } from './utils/embeds.js';
-import { getPrefix, isWhitelisted, getGuildData, addPreviousName } from './utils/database.js';
+import { getPrefix, isWhitelisted, getGuildData, addPreviousName, getUserData, saveUserData } from './utils/database.js';
 
 config();
 
@@ -118,6 +118,42 @@ client.on(Events.GuildMemberUpdate, (oldMember, newMember) => {
 // Événement : Utilisateur rejoint un serveur (enregistrer le pseudo actuel)
 client.on(Events.GuildMemberAdd, member => {
   addPreviousName(member.user.id, member.user.username);
+});
+
+// Événement : Détection AFK
+client.on(Events.MessageCreate, async message => {
+  if (message.author.bot) return;
+
+  // Vérifier si l'auteur était AFK
+  const authorData = getUserData(message.author.id);
+  if (authorData.afk) {
+    delete authorData.afk;
+    saveUserData(message.author.id, authorData);
+    
+    try {
+      const reply = await message.reply(`Bienvenue ! Tu n'es plus AFK.`);
+      setTimeout(() => reply.delete().catch(() => {}), 5000);
+    } catch {}
+  }
+
+  // Vérifier si quelqu'un mentionne un utilisateur AFK
+  if (message.mentions.users.size > 0) {
+    for (const [id, user] of message.mentions.users) {
+      if (user.bot) continue;
+      
+      const userData = getUserData(id);
+      if (userData.afk) {
+        const duration = Date.now() - userData.afk.timestamp;
+        const minutes = Math.floor(duration / 60000);
+        const timeStr = minutes > 0 ? `depuis ${minutes}min` : 'à l\'instant';
+        
+        try {
+          const reply = await message.reply(`${user} est AFK: ${userData.afk.reason} (${timeStr})`);
+          setTimeout(() => reply.delete().catch(() => {}), 10000);
+        } catch {}
+      }
+    }
+  }
 });
 
 // Événement : Bot quitte un serveur

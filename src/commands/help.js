@@ -80,9 +80,9 @@ export default {
       'Booster Role': ['boosterrole', 'boost'],
       'Messages': ['welcome', 'goodbye', 'sticky', 'autoresponder', 'imageonly'],
       'Filtres': ['filter'],
-      'Informations': ['help', 'info', 'userinfo', 'profile', 'serverinfo', 'botinfo', 'channelinfo', 'roleinfo', 'invite', 'snipe', 'firstmessage'],
-      'Modération': ['kick', 'ban', 'unban', 'timeout', 'warn', 'clear', 'roleall', 'hide', 'unhide', 'lock', 'unlock', 'hideall', 'pin', 'unpin'],
-      'Utilitaires': ['avatar', 'emoji', 'emojis', 'steal', 'extractemojis', 'ping', 'say', 'poll', 'uptime', 'calc', 'random', 'renew', 'webhook'],
+      'Informations': ['help', 'info', 'userinfo', 'profile', 'serverinfo', 'botinfo', 'channelinfo', 'roleinfo', 'invite', 'snipe', 'firstmessage', 'membercount'],
+      'Modération': ['kick', 'ban', 'unban', 'timeout', 'warn', 'clear', 'roleall', 'hide', 'unhide', 'lock', 'unlock', 'hideall', 'pin', 'unpin', 'nuke', 'slowmode', 'voicemove'],
+      'Utilitaires': ['avatar', 'emoji', 'emojis', 'steal', 'extractemojis', 'ping', 'say', 'poll', 'uptime', 'calc', 'random', 'renew', 'webhook', 'afk', 'backup'],
       'Logs': ['logs'],
       'Fun': ['8ball', 'coinflip', 'quote', 'suggest'],
     };
