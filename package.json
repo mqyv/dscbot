@@ -10,6 +10,7 @@
     "callback": "node src/callback-server.js",
     "start:all": "node src/callback-server.js & node src/index.js",
     "setup": "node src/setup.js",
+    "deploy": "node deploy-commands.js",
     "pm2:start": "pm2 start ecosystem.config.cjs",
     "pm2:stop": "pm2 stop dscbot",
     "pm2:restart": "pm2 restart dscbot",
@@ -25,7 +26,8 @@
   "dependencies": {
     "archiver": "^7.0.1",
     "discord.js": "^14.14.1",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "groq-sdk": "^0.7.0"
   },
   "engines": {
     "node": ">=18.0.0"

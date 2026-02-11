@@ -71,6 +71,34 @@ client.once(Events.ClientReady, () => {
   // L'activité peut être changée avec la commande customize activity
 });
 
+// Événement : Gestion des interactions (slash commands)
+client.on(Events.InteractionCreate, async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+
+  const command = client.commands.get(interaction.commandName);
+
+  if (!command) {
+    console.error(`Commande slash inconnue: ${interaction.commandName}`);
+    return;
+  }
+
+  try {
+    await command.execute(interaction);
+  } catch (error) {
+    console.error(`Erreur lors de l'exécution de /${interaction.commandName}:`, error);
+    const errorMessage = {
+      content: 'Une erreur est survenue lors de l\'exécution de cette commande.',
+      ephemeral: true
+    };
+    
+    if (interaction.replied || interaction.deferred) {
+      await interaction.followUp(errorMessage);
+    } else {
+      await interaction.reply(errorMessage);
+    }
+  }
+});
+
 // Événement : Bot rejoint un serveur
 client.on(Events.GuildCreate, guild => {
   console.log(`\n🎉 BOT AJOUTÉ À UN SERVEUR !`);
