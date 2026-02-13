@@ -42,17 +42,18 @@ function saveDB(data) {
   }
 }
 
-// Obtenir les données d'un serveur
+// Obtenir les données d'un serveur (guildId peut être 'dm' pour les messages privés)
 export function getGuildData(guildId) {
   const db = loadDB();
-  if (!db.guilds[guildId]) {
-    db.guilds[guildId] = {
+  const id = guildId || 'dm';
+  if (!db.guilds[id]) {
+    db.guilds[id] = {
       prefix: ',',
       settings: {},
     };
     saveDB(db);
   }
-  return db.guilds[guildId];
+  return db.guilds[id];
 }
 
 // Sauvegarder les données d'un serveur
@@ -90,13 +91,13 @@ export function saveUserData(userId, data) {
   saveDB(db);
 }
 
-// Obtenir le prefix pour un utilisateur dans un serveur
+// Obtenir le prefix pour un utilisateur (guildId = null pour DM)
 export function getPrefix(guildId, userId) {
   const userData = getUserData(userId);
   if (userData.prefix) {
     return userData.prefix;
   }
-  const guildData = getGuildData(guildId);
+  const guildData = getGuildData(guildId || 'dm');
   return guildData.prefix || ',';
 }
 
@@ -140,6 +141,32 @@ export function removeFromWhitelist(userId) {
 // Vérifier si un utilisateur est whitelisté
 export function isWhitelisted(userId) {
   return getWhitelist().includes(userId);
+}
+
+// Notes personnelles (pour commande en MP)
+export function getUserNotes(userId) {
+  const userData = getUserData(userId);
+  if (!userData.notes) userData.notes = [];
+  return userData.notes;
+}
+
+export function addUserNote(userId, content) {
+  const userData = getUserData(userId);
+  if (!userData.notes) userData.notes = [];
+  const note = { id: Date.now(), content, createdAt: new Date().toISOString() };
+  userData.notes.push(note);
+  saveUserData(userId, userData);
+  return note;
+}
+
+export function removeUserNote(userId, noteId) {
+  const userData = getUserData(userId);
+  if (!userData.notes) return false;
+  const idx = userData.notes.findIndex(n => n.id === parseInt(noteId) || n.id === noteId);
+  if (idx === -1) return false;
+  userData.notes.splice(idx, 1);
+  saveUserData(userId, userData);
+  return true;
 }
 
 // Ajouter un ancien pseudo à l'historique

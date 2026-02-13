@@ -33,7 +33,52 @@ export default {
         .setDescription('Réinitialiser la conversation')
     ),
 
-  async execute(interaction) {
+  async execute(interactionOrMessage, args = [], client) {
+    const isSlash = interactionOrMessage.isChatInputCommand?.();
+    const interaction = isSlash ? interactionOrMessage : null;
+    const message = isSlash ? null : interactionOrMessage;
+
+    if (message) {
+      // Préfixe en MP: ,ai <question> ou ,ai reset
+      const sub = (args[0] || '').toLowerCase();
+      if (sub === 'reset') {
+        conversations.delete(message.author.id);
+        return message.reply({ embeds: [new EmbedBuilder().setColor('#5865F2').setTitle('Conversation réinitialisée').setDescription('Historique effacé.').setTimestamp()] });
+      }
+      const question = args.join(' ');
+      if (!question) {
+        return message.reply({ embeds: [new EmbedBuilder().setColor('#FF0000').setTitle('Usage').setDescription('`,ai <question>` ou `,ai reset`').setTimestamp()] });
+      }
+      if (!process.env.GROQ_API_KEY) {
+        return message.reply({ embeds: [new EmbedBuilder().setColor('#FF0000').setTitle('Erreur').setDescription('IA non configurée.').setTimestamp()] });
+      }
+      const loading = await message.reply('Réflexion...');
+      try {
+        if (!conversations.has(message.author.id)) {
+          conversations.set(message.author.id, [{ role: 'system', content: 'Tu es un pote sur Discord, décontracté. Argot, verlan, vulgarité OK. Adapte-toi. Emojis 💀😭🔥.' }]);
+        }
+        const history = conversations.get(message.author.id);
+        history.push({ role: 'user', content: question });
+        const groqClient = getGroq();
+        const completion = await groqClient.chat.completions.create({ messages: history, model: 'llama-3.3-70b-versatile', temperature: 0.7, max_tokens: 2000 });
+        const response = completion.choices[0]?.message?.content || 'Pas de réponse.';
+        history.push({ role: 'assistant', content: response });
+        if (history.length > 21) conversations.set(message.author.id, [history[0], ...history.slice(-20)]);
+        const text = `**${message.author.username}:** ${question}\n\n${response}`;
+        if (text.length > 2000) {
+          const chunks = response.match(new RegExp(`.{1,${1900}}`, 'g')) || [response];
+          await loading.edit(`**${message.author.username}:** ${question}\n\n${chunks[0]}`);
+          for (let i = 1; i < chunks.length; i++) await message.channel.send(chunks[i]);
+        } else {
+          await loading.edit(text);
+        }
+      } catch (e) {
+        console.error('Erreur Groq:', e);
+        await loading.edit({ embeds: [new EmbedBuilder().setColor('#FF0000').setTitle('Erreur').setDescription(String(e.message)).setTimestamp()] });
+      }
+      return;
+    }
+
     const subcommand = interaction.options.getSubcommand();
 
     if (subcommand === 'reset') {

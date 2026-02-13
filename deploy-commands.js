@@ -29,6 +29,15 @@ const COMMAND_OPTIONS = {
   'poll': (b) => b.addStringOption(o => o.setName('question').setDescription('Question du sondage').setRequired(true)).addStringOption(o => o.setName('options').setDescription('Options séparées par |').setRequired(false)),
   'quote': (b) => b.addStringOption(o => o.setName('id').setDescription('ID du message').setRequired(false)),
   'profile': (b) => b.addUserOption(o => o.setName('utilisateur').setDescription('Utilisateur').setRequired(false)),
+  'remind': (b) => b.addStringOption(o => o.setName('durée').setDescription('Ex: 5m, 1h, 30s').setRequired(true)).addStringOption(o => o.setName('message').setDescription('Rappel').setRequired(true)),
+  'notes': (b) => b.addStringOption(o => o.setName('action').setDescription('add, list, view, remove').setRequired(false)).addStringOption(o => o.setName('contenu').setDescription('Texte ou ID').setRequired(false)),
+  'customize': (b) => b
+    .addStringOption(o => o.setName('avatar').setDescription('URL de l\'avatar (PP)').setRequired(false))
+    .addStringOption(o => o.setName('banner').setDescription('URL de la bannière').setRequired(false))
+    .addStringOption(o => o.setName('activity').setDescription('Activité affichée').setRequired(false))
+    .addStringOption(o => o.setName('bio').setDescription('Bio du bot (max 190 car.)').setRequired(false))
+    .addStringOption(o => o.setName('username').setDescription('Nom d\'utilisateur').setRequired(false))
+    .addStringOption(o => o.setName('nickname').setDescription('Surnom sur le serveur').setRequired(false)),
 };
 
 const commands = [];
