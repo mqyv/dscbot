@@ -40,21 +40,26 @@ export const commandHelp = {
   customize: {
     description: 'Modifier le profil complet du bot (PP, bannière, activité, bio, etc.)',
     arguments: 'avatar, banner, activity, bio, username, nickname',
-    syntax: 'set avatar <url> banner <url> activity <texte> bio <texte>',
-    example: 'set avatar https://... activity Jouer à Minecraft',
+    syntax: 'set avatar <url> banner <url> activity <type> <nom> [description] [url]',
+    example: 'activity listening Blanka par PNL',
     module: 'Configuration',
     aliases: ['profile', 'setprofile'],
     usage: [
-      '`customize set avatar <url> banner <url> activity <texte> bio <texte> username <nom> nickname <surnom>` - Tout en une fois',
+      '`customize set avatar <url> banner <url> activity <type> <nom> [description] [url]` - Tout en une fois',
+      '`customize activity <type> <nom> [description] [url]` - Activité uniquement',
+      'Types: playing, streaming, listening, watching, competing, custom',
       '`customize avatar <url>` - PP uniquement',
       '`customize banner <url>` - Bannière uniquement',
       '`customize view` - Voir la config',
     ],
     examples: [
-      '`customize set avatar https://i.imgur.com/xxx.png activity Jouer`',
-      '`customize set bio Mon super bot`',
+      '`customize activity playing Minecraft`',
+      '`customize activity streaming Ma chaîne https://twitch.tv/user`',
+      '`customize activity listening Blanka par PNL`',
+      '`customize activity watching Netflix`',
+      '`customize activity competing League of Legends`',
     ],
-    permissions: 'Propriétaire du bot',
+    permissions: 'Propriétaire du bot / Gérer le serveur',
   },
 
   // Commandes de modération (style vile)

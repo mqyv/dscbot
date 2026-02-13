@@ -67,15 +67,14 @@ for (const file of commandFiles) {
 }
 
 // Événement : Bot prêt
-client.once(Events.ClientReady, () => {
+client.once(Events.ClientReady, async () => {
   console.log(`✅ Bot connecté en tant que ${client.user.tag}!`);
   console.log(`📊 Le bot est sur ${client.guilds.cache.size} serveur(s)`);
   client.guilds.cache.forEach(guild => {
     console.log(`   - ${guild.name} (${guild.id})`);
   });
-  
-  // Définir l'activité par défaut (pas d'activité personnalisée)
-  // L'activité peut être changée avec la commande customize activity
+  const { restoreBotActivity } = await import('./commands/customize.js');
+  await restoreBotActivity(client);
 });
 
 // Construire args et message-like depuis une interaction (pour les commandes prefix)

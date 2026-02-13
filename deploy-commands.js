@@ -34,7 +34,7 @@ const COMMAND_OPTIONS = {
   'customize': (b) => b
     .addStringOption(o => o.setName('avatar').setDescription('URL de l\'avatar (PP)').setRequired(false))
     .addStringOption(o => o.setName('banner').setDescription('URL de la bannière').setRequired(false))
-    .addStringOption(o => o.setName('activity').setDescription('Activité affichée').setRequired(false))
+    .addStringOption(o => o.setName('activity').setDescription('Ex: playing Minecraft, streaming Ma chaîne https://twitch.tv/..., listening Blanka par PNL').setRequired(false))
     .addStringOption(o => o.setName('bio').setDescription('Bio du bot (max 190 car.)').setRequired(false))
     .addStringOption(o => o.setName('username').setDescription('Nom d\'utilisateur').setRequired(false))
     .addStringOption(o => o.setName('nickname').setDescription('Surnom sur le serveur').setRequired(false)),
@@ -65,6 +65,12 @@ for (const file of commandFiles) {
     }
     slashData = builder.toJSON();
   }
+
+  // Activer les commandes en MP (comme "Fréquemment utilisés" dans l'image)
+  // contexts: 0=Guild, 1=Bot DM, 2=Private Channel (DMs/groupes)
+  // integration_types: 0=Guild install, 1=User install ("Ajouter à mes apps")
+  slashData.contexts = [0, 1, 2];
+  slashData.integration_types = [0, 1];
 
   commands.push(slashData);
   console.log(`✓ ${slashData.name}`);
