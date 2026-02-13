@@ -40,34 +40,49 @@ export default {
       const usage = helpInfo?.usage || [];
       const examples = helpInfo?.examples || [];
       const permissions = helpInfo?.permissions;
+      const hasStyledFormat = helpInfo?.syntax !== undefined;
 
-      const embed = createEmbed('info', {
-        title: `Aide: ${prefix}${commandName}`,
-        description: description,
-      });
-
-      if (usage.length > 0) {
-        embed.addFields({
-          name: 'Utilisation',
-          value: usage.join('\n'),
-          inline: false,
+      let embed;
+      if (hasStyledFormat) {
+        // Style "vile" : bloc syntax/example mis en avant
+        const syntaxLine = helpInfo.syntax ? `${prefix}${commandName} ${helpInfo.syntax}`.trim() : `${prefix}${commandName}`;
+        const exampleLine = helpInfo.example ? `${prefix}${commandName} ${helpInfo.example}` : `${prefix}${commandName}`;
+        const codeBlock = `\`\`\`\nSyntax:  ${syntaxLine}\nExample: ${exampleLine}\n\`\`\``;
+        const footerParts = [`Module: ${helpInfo.module || 'Général'}`];
+        if (helpInfo.aliases?.length) {
+          footerParts.push(`Aliases: ${helpInfo.aliases.join(', ')}`);
+        }
+        const fields = [];
+        if (helpInfo.arguments && helpInfo.arguments !== 'aucun') {
+          fields.push({ name: '**Arguments**', value: helpInfo.arguments, inline: true });
+        }
+        if (permissions) {
+          fields.push({ name: '**Permissions**', value: permissions, inline: true });
+        }
+        fields.push({ name: '\u200b', value: codeBlock, inline: false });
+        embed = createEmbed('info', {
+          title: `Command: ${commandName}`,
+          description: description,
+          fields,
+          footer: { text: footerParts.join(' • ') },
+          timestamp: true,
+          color: 0x9B59B6,
         });
-      }
-
-      if (examples.length > 0) {
-        embed.addFields({
-          name: 'Exemples',
-          value: examples.join('\n'),
-          inline: false,
+      } else {
+        // Format classique
+        embed = createEmbed('info', {
+          title: `Aide: ${prefix}${commandName}`,
+          description: description,
         });
-      }
-
-      if (permissions) {
-        embed.addFields({
-          name: 'Permissions requises',
-          value: permissions,
-          inline: false,
-        });
+        if (usage.length > 0) {
+          embed.addFields({ name: 'Utilisation', value: usage.join('\n'), inline: false });
+        }
+        if (examples.length > 0) {
+          embed.addFields({ name: 'Exemples', value: examples.join('\n'), inline: false });
+        }
+        if (permissions) {
+          embed.addFields({ name: 'Permissions requises', value: permissions, inline: false });
+        }
       }
 
       return message.reply({ embeds: [embed] });
