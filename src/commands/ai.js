@@ -1,9 +1,13 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import Groq from 'groq-sdk';
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY
-});
+let groq = null;
+function getGroq() {
+  if (!groq && process.env.GROQ_API_KEY) {
+    groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  }
+  return groq;
+}
 
 // Stocker les conversations par utilisateur
 const conversations = new Map();
@@ -27,17 +31,6 @@ export default {
       subcommand
         .setName('reset')
         .setDescription('Réinitialiser la conversation')
-    )
-    .addSubcommand(subcommand =>
-      subcommand
-        .setName('image')
-        .setDescription('Générer une image (bientôt disponible)')
-        .addStringOption(option =>
-          option
-            .setName('prompt')
-            .setDescription('Description de l\'image')
-            .setRequired(true)
-        )
     ),
 
   async execute(interaction) {
@@ -49,16 +42,6 @@ export default {
         .setColor('#5865F2')
         .setTitle('Conversation réinitialisée')
         .setDescription('Votre historique de conversation a été effacé.')
-        .setTimestamp();
-      
-      return interaction.reply({ embeds: [embed], ephemeral: true });
-    }
-
-    if (subcommand === 'image') {
-      const embed = new EmbedBuilder()
-        .setColor('#FFA500')
-        .setTitle('Fonctionnalité en développement')
-        .setDescription('La génération d\'images sera bientôt disponible.')
         .setTimestamp();
       
       return interaction.reply({ embeds: [embed], ephemeral: true });
@@ -98,7 +81,8 @@ export default {
         });
 
         // Appel à l'API Groq
-        const completion = await groq.chat.completions.create({
+        const groqClient = getGroq();
+        const completion = await groqClient.chat.completions.create({
           messages: history,
           model: 'llama-3.3-70b-versatile', // Modèle le plus puissant de Groq
           temperature: 0.7,

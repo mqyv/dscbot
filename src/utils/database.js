@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -8,6 +8,10 @@ const DB_PATH = join(__dirname, '../../data/database.json');
 
 // Initialiser la base de données
 function initDB() {
+  const dataDir = join(DB_PATH, '..');
+  if (!existsSync(dataDir)) {
+    mkdirSync(dataDir, { recursive: true });
+  }
   if (!existsSync(DB_PATH)) {
     const defaultData = {
       guilds: {},

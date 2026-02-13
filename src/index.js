@@ -4,7 +4,7 @@ import { readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createEmbed } from './utils/embeds.js';
-import { getPrefix, isWhitelisted, getGuildData, addPreviousName, getUserData, saveUserData } from './utils/database.js';
+import { getPrefix, isWhitelisted, getGuildData, saveGuildData, addPreviousName, getUserData, saveUserData } from './utils/database.js';
 
 config();
 
@@ -71,30 +71,97 @@ client.once(Events.ClientReady, () => {
   // L'activité peut être changée avec la commande customize activity
 });
 
+// Construire args et message-like depuis une interaction (pour les commandes prefix)
+function buildContextFromInteraction(interaction) {
+  const users = new Map();
+  const members = new Map();
+  const args = [];
+  let hasUserOpt = false;
+
+  for (const opt of interaction.options.data || []) {
+    if (opt.user) {
+      hasUserOpt = true;
+      users.set(opt.user.id, opt.user);
+      if (opt.member) members.set(opt.member.id, opt.member);
+    }
+    if (opt.value !== undefined && opt.value !== null && opt.type !== 6) {
+      args.push(String(opt.value));
+    }
+  }
+  if (hasUserOpt) {
+    args.unshift('');
+  }
+
+  const usersCol = new Collection(users);
+  const membersCol = new Collection(members);
+
+  const messageLike = {
+    reply: async (content) => {
+      await interaction.reply(content);
+      return { edit: (c) => interaction.editReply(c) };
+    },
+    channel: interaction.channel,
+    author: interaction.user,
+    guild: interaction.guild,
+    member: interaction.member,
+    client: interaction.client,
+    mentions: {
+      users: usersCol,
+      members: membersCol,
+    },
+  };
+
+  return { messageLike, args };
+}
+
 // Événement : Gestion des interactions (slash commands)
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
-  const command = client.commands.get(interaction.commandName);
+  const commandName = interaction.commandName;
+  const command = client.commands.get(commandName);
 
   if (!command) {
-    console.error(`Commande slash inconnue: ${interaction.commandName}`);
+    console.error(`Commande slash inconnue: ${commandName}`);
     return;
   }
 
+  // Vérifier les permissions (comme pour les commandes préfixe)
+  if (OWNER_ONLY_COMMANDS.includes(commandName)) {
+    if (!isOwner(interaction.user.id)) {
+      return interaction.reply({
+        content: 'Cette commande est réservée au propriétaire du bot.',
+        ephemeral: true,
+      });
+    }
+  } else if (MODERATION_COMMANDS.includes(commandName)) {
+    if (!isOwner(interaction.user.id) && !isWhitelisted(interaction.user.id)) {
+      return interaction.reply({
+        content: 'Cette commande est réservée au propriétaire du bot ou aux utilisateurs whitelistés.',
+        ephemeral: true,
+      });
+    }
+  }
+
   try {
-    await command.execute(interaction);
+    // La commande ai a sa propre logique (interaction)
+    if (commandName === 'ai') {
+      await command.execute(interaction);
+    } else {
+      const { messageLike, args } = buildContextFromInteraction(interaction);
+      await command.execute(messageLike, args, client);
+    }
   } catch (error) {
-    console.error(`Erreur lors de l'exécution de /${interaction.commandName}:`, error);
+    console.error(`Erreur lors de l'exécution de /${commandName}:`, error);
     const errorMessage = {
       content: 'Une erreur est survenue lors de l\'exécution de cette commande.',
       ephemeral: true
     };
     
     if (interaction.replied || interaction.deferred) {
-      await interaction.followUp(errorMessage);
+      await interaction.followUp(errorMessage).catch(() => {});
     } else {
-      await interaction.reply(errorMessage);
+      await interaction.reply(errorMessage).catch(() => {});
     }
   }
 });
