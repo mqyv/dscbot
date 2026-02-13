@@ -93,7 +93,7 @@ export default {
     const commands = Array.from(client.commands.values());
     const DM_CATEGORIES = {
       'Perso': ['remind', 'notes'],
-      'IA & Fun': ['ai', '8ball', 'coinflip', 'random'],
+      'IA & Fun': ['ai', '8ball', 'coinflip', 'random', 'dice', 'urban'],
       'Utilitaires': ['ping', 'avatar', 'calc', 'afk'],
     };
     const categories = isDM ? DM_CATEGORIES : {
@@ -103,7 +103,7 @@ export default {
       'Filtres': ['filter'],
       'Informations': ['help', 'info', 'userinfo', 'profile', 'serverinfo', 'botinfo', 'channelinfo', 'roleinfo', 'invite', 'snipe', 'firstmessage', 'membercount'],
       'Modération': ['kick', 'ban', 'unban', 'timeout', 'warn', 'clear', 'roleall', 'hide', 'unhide', 'lock', 'unlock', 'hideall', 'pin', 'unpin', 'nuke', 'slowmode', 'voicemove'],
-      'Utilitaires': ['avatar', 'emoji', 'emojis', 'steal', 'extractemojis', 'ping', 'say', 'poll', 'uptime', 'calc', 'random', 'renew', 'webhook', 'afk', 'backup', 'remind', 'notes'],
+      'Utilitaires': ['avatar', 'emoji', 'emojis', 'steal', 'extractemojis', 'ping', 'say', 'poll', 'uptime', 'calc', 'random', 'dice', 'urban', 'embed', 'renew', 'webhook', 'afk', 'backup', 'remind', 'notes'],
       'Logs': ['logs'],
       'Fun': ['8ball', 'coinflip', 'quote', 'suggest'],
     };

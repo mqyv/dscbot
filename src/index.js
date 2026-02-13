@@ -30,7 +30,7 @@ const MODERATION_COMMANDS = [
 
 // Commandes utilisables en MP (bot perso)
 const DM_COMMANDS = [
-  'ai', 'ping', '8ball', 'coinflip', 'random', 'help', 'avatar', 'calc', 'afk',
+  'ai', 'ping', '8ball', 'coinflip', 'random', 'dice', 'urban', 'help', 'avatar', 'calc', 'afk',
   'remind', 'notes', 'botinfo', 'invite'
 ];
 

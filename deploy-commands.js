@@ -31,6 +31,9 @@ const COMMAND_OPTIONS = {
   'profile': (b) => b.addUserOption(o => o.setName('utilisateur').setDescription('Utilisateur').setRequired(false)),
   'remind': (b) => b.addStringOption(o => o.setName('durée').setDescription('Ex: 5m, 1h, 30s').setRequired(true)).addStringOption(o => o.setName('message').setDescription('Rappel').setRequired(true)),
   'notes': (b) => b.addStringOption(o => o.setName('action').setDescription('add, list, view, remove').setRequired(false)).addStringOption(o => o.setName('contenu').setDescription('Texte ou ID').setRequired(false)),
+  'dice': (b) => b.addStringOption(o => o.setName('expression').setDescription('Ex: 2d6, 1d20, 4d8+3').setRequired(false)),
+  'urban': (b) => b.addStringOption(o => o.setName('terme').setDescription('Mot à chercher').setRequired(true)),
+  'embed': (b) => b.addStringOption(o => o.setName('contenu').setDescription('titre | description | couleur (ex: Annonce | Bienvenue ! | 5865F2)').setRequired(false)),
   'customize': (b) => b
     .addStringOption(o => o.setName('avatar').setDescription('URL de l\'avatar (PP)').setRequired(false))
     .addStringOption(o => o.setName('banner').setDescription('URL de la bannière').setRequired(false))
@@ -77,6 +80,7 @@ for (const file of commandFiles) {
 }
 
 console.log(`\nDéploiement de ${commands.length} commande(s) slash...`);
+// PUT remplace TOUTES les commandes → reels, /ai image, etc. sont supprimés s'ils n'existent plus dans le code
 
 const rest = new REST().setToken(process.env.DISCORD_TOKEN);
 

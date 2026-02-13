@@ -557,6 +557,41 @@ export const commandHelp = {
     permissions: 'Aucune',
   },
 
+  dice: {
+    description: 'Lancer des dés (format XdY ou XdY+Z)',
+    arguments: 'expression',
+    syntax: '<XdY> [±Z]',
+    example: '2d6 ou 4d8+3',
+    module: 'Fun',
+    aliases: ['d', 'roll'],
+    usage: ['`dice <expression>` - Ex: 1d6, 2d20, 4d8+3'],
+    examples: ['`dice 1d6`', '`dice 2d20`', '`dice 4d8+3`'],
+    permissions: 'Aucune',
+  },
+
+  urban: {
+    description: 'Chercher une définition sur Urban Dictionary',
+    arguments: 'terme',
+    syntax: '<terme>',
+    example: 'banger',
+    module: 'Fun',
+    aliases: ['ud', 'urbandict'],
+    usage: ['`urban <terme>` - Définition du terme'],
+    examples: ['`urban banger`', '`urban no cap`'],
+    permissions: 'Aucune',
+  },
+
+  embed: {
+    description: 'Créer un embed personnalisé (titre, description, couleur)',
+    arguments: 'titre, description, couleur',
+    syntax: '<titre> | <description> [| #couleur]',
+    example: 'Annonce | Bienvenue ! | 5865F2',
+    module: 'Utilitaires',
+    usage: ['`embed <titre> | <description> [| couleur]`'],
+    examples: ['`embed Annonce | Bienvenue !`', '`embed Événement | RDV samedi | FF0000`'],
+    permissions: 'Gérer les messages',
+  },
+
   suggest: {
     description: 'Créer une suggestion pour le serveur',
     arguments: 'suggestion',
