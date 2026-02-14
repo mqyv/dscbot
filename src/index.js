@@ -122,10 +122,47 @@ function buildContextFromInteraction(interaction) {
   return { messageLike, args };
 }
 
-// Événement : Gestion des interactions (slash commands + boutons)
+// Événement : Gestion des interactions (slash commands + boutons + select + modals)
 client.on(Events.InteractionCreate, async interaction => {
-  // Gestion des boutons (tickets)
+  // Gestion des modals (config embeds tickets)
+  if (interaction.isModalSubmit() && interaction.customId.startsWith('ticket_embed_modal_')) {
+    try {
+      const { handleTicketEmbedModal } = await import('./commands/ticket.js');
+      await handleTicketEmbedModal(interaction);
+    } catch (error) {
+      console.error('Erreur modal ticket embed:', error);
+      const err = { content: 'Une erreur est survenue.', ephemeral: true };
+      (interaction.replied || interaction.deferred ? interaction.followUp(err) : interaction.reply(err)).catch(() => {});
+    }
+    return;
+  }
+
+  // Gestion du select menu (choix type ticket)
+  if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_embed_type') {
+    try {
+      const { handleTicketEmbedSelect } = await import('./commands/ticket.js');
+      await handleTicketEmbedSelect(interaction);
+    } catch (error) {
+      console.error('Erreur select ticket embed:', error);
+      const err = { content: 'Une erreur est survenue.', ephemeral: true };
+      (interaction.replied || interaction.deferred ? interaction.followUp(err) : interaction.reply(err)).catch(() => {});
+    }
+    return;
+  }
+
+  // Gestion des boutons (config embeds + création/fermeture tickets)
   if (interaction.isButton()) {
+    if (interaction.customId.startsWith('ticket_embed_')) {
+      try {
+        const { handleTicketEmbedButton } = await import('./commands/ticket.js');
+        await handleTicketEmbedButton(interaction);
+      } catch (error) {
+        console.error('Erreur bouton ticket embed:', error);
+        const err = { content: 'Une erreur est survenue.', ephemeral: true };
+        (interaction.replied || interaction.deferred ? interaction.followUp(err) : interaction.reply(err)).catch(() => {});
+      }
+      return;
+    }
     if (interaction.customId.startsWith('ticket_create')) {
       try {
         const { handleTicketCreate } = await import('./commands/ticket.js');

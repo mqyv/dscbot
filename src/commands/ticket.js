@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType, EmbedBuilder } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType, EmbedBuilder, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { createEmbed } from '../utils/embeds.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
 
@@ -62,10 +62,7 @@ export default {
         await ticketRemoveType(message, args.slice(1));
         break;
       case 'embed':
-        await ticketEmbed(message, args.slice(1));
-        break;
-      case 'button':
-        await ticketButton(message, args.slice(1));
+        await ticketEmbed(message);
         break;
       case 'close':
         await ticketClose(message);
@@ -87,9 +84,8 @@ export default {
             { name: '`,ticket addtype <id> <catégorie>`', value: 'Ajouter un type de ticket (ex: support, report)', inline: false },
             { name: '`,ticket removetype <id>`', value: 'Supprimer un type de ticket', inline: false },
             { name: '`,ticket setup [type1] [type2]...`', value: 'Créer le panneau (tous les types ou spécifiques)', inline: false },
-            { name: '`,ticket embed <type> panel|ticket title|description|footer|color <valeur>`', value: 'Personnaliser l\'embed', inline: false },
-            { name: '`,ticket button <type> label|emoji <valeur>`', value: 'Personnaliser le bouton', inline: false },
-            { name: '`,ticket config support <type> @rôle`', value: 'Rôle support pour un type', inline: false },
+            { name: '`,ticket embed`', value: 'Ouvrir la configuration des embeds (interactif)', inline: false },
+            { name: '`,ticket config`', value: 'Voir la configuration actuelle', inline: false },
             { name: '`,ticket close` / `add` / `remove`', value: 'Dans un canal ticket', inline: false },
             { name: 'Variables embeds', value: '`{user}` `{username}` `{support}` `{server}` `{ticketnumber}`', inline: false },
           ],
@@ -232,71 +228,290 @@ async function ticketRemoveType(message, args) {
   message.reply({ embeds: [createEmbed('success', { title: 'Type supprimé', description: `Le type \`${typeId}\` a été supprimé.` })] });
 }
 
-async function ticketEmbed(message, args) {
-  if (!args[0] || !args[1] || !args[2] || !args[3]) {
-    const errorEmbed = createEmbed('error', {
-      title: 'Erreur',
-      description: 'Usage: `,ticket embed <type> panel|ticket title|description|footer|color <valeur>`\nExemple: `,ticket embed support panel title "Support technique"`\nExemple: `,ticket embed support ticket description "Bienvenue {user} !"`',
-    });
-    return message.reply({ embeds: [errorEmbed] });
-  }
-
-  const typeId = args[0].toLowerCase();
-  const target = args[1].toLowerCase();
-  const field = args[2].toLowerCase();
-  const value = args.slice(3).join(' ').replace(/^["']|["']$/g, '');
-
-  if (!['panel', 'ticket'].includes(target) || !['title', 'description', 'footer', 'color'].includes(field)) {
-    return message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: 'panel|ticket et title|description|footer|color requis.' })] });
-  }
-
+async function ticketEmbed(message) {
   const guildData = getGuildData(message.guild.id);
   ensureTicketTypes(guildData, message.guild.id);
-  const types = guildData.settings.ticket.types;
-  if (!types || !types[typeId]) {
-    return message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: `Type \`${typeId}\` introuvable.` })] });
+  const types = guildData.settings?.ticket?.types || getTicketTypes(guildData);
+
+  if (!types || Object.keys(types).length === 0) {
+    return message.reply({
+      embeds: [createEmbed('error', {
+        title: 'Aucun type configuré',
+        description: 'Utilisez `,ticket addtype <id> <catégorie>` pour créer un type de ticket d\'abord.',
+      })],
+    });
   }
 
-  const embedKey = target === 'panel' ? 'panelEmbed' : 'ticketEmbed';
-  if (!types[typeId][embedKey]) types[typeId][embedKey] = {};
-  if (field === 'color') {
-    const hex = value.replace('#', '');
-    types[typeId][embedKey].color = parseInt(hex, 16) || 0x5865F2;
-  } else {
-    types[typeId][embedKey][field] = value;
-  }
+  const typeOptions = Object.keys(types).map(id => ({
+    label: id.charAt(0).toUpperCase() + id.slice(1),
+    value: id,
+    description: `Configurer le type "${id}"`,
+  }));
 
-  saveGuildData(message.guild.id, guildData);
+  const select = new StringSelectMenuBuilder()
+    .setCustomId('ticket_embed_type')
+    .setPlaceholder('Choisissez le type de ticket...')
+    .addOptions(typeOptions);
 
-  message.reply({ embeds: [createEmbed('success', { title: 'Embed mis à jour', description: `\`${typeId}\` → ${target}.${field}` })] });
+  const row = new ActionRowBuilder().addComponents(select);
+
+  const embed = createEmbed('info', {
+    title: 'Configuration des embeds',
+    description: '**Étape 1** : Choisissez le type de ticket à configurer dans le menu ci-dessous.\n\nEnsuite vous pourrez modifier :\n• **Panneau** – L\'embed affiché sur le panneau de tickets\n• **Ticket** – L\'embed affiché dans chaque ticket\n• **Bouton** – Le libellé et l\'emoji du bouton',
+    footer: { text: 'Variables : {user} {username} {support} {server} {ticketnumber}' },
+  });
+
+  await message.reply({ embeds: [embed], components: [row] });
 }
 
-async function ticketButton(message, args) {
-  if (!args[0] || !args[1] || !args[2]) {
-    return message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: 'Usage: `,ticket button <type> label|emoji <valeur>`' })] });
+export function buildEmbedConfigButtons(typeId, guildData) {
+  const types = guildData?.settings?.ticket?.types || getTicketTypes(guildData || {});
+  const typeOptions = Object.keys(types || {}).map(id => ({
+    label: id.charAt(0).toUpperCase() + id.slice(1),
+    value: id,
+    description: `Configurer le type "${id}"`,
+  }));
+
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`ticket_embed_panel_${typeId}`)
+        .setLabel('Embed du panneau')
+        .setEmoji('📋')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`ticket_embed_ticket_${typeId}`)
+        .setLabel('Embed du ticket')
+        .setEmoji('🎫')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`ticket_embed_btn_${typeId}`)
+        .setLabel('Bouton')
+        .setEmoji('🔘')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`ticket_embed_role_${typeId}`)
+        .setLabel('Rôle support')
+        .setEmoji('👮')
+        .setStyle(ButtonStyle.Secondary)
+    ),
+  ];
+
+  if (typeOptions.length > 0) {
+    const select = new StringSelectMenuBuilder()
+      .setCustomId('ticket_embed_type')
+      .setPlaceholder('Changer de type...')
+      .addOptions(typeOptions);
+    rows.push(new ActionRowBuilder().addComponents(select));
   }
 
-  const typeId = args[0].toLowerCase();
-  const field = args[1].toLowerCase();
-  const value = args.slice(2).join(' ').replace(/^["']|["']$/g, '');
+  return rows;
+}
 
-  if (!['label', 'emoji'].includes(field)) {
-    return message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: 'Utilisez label ou emoji.' })] });
+export function buildEmbedModal(typeId, part, current = {}) {
+  const isBtn = part === 'btn';
+  const modal = new ModalBuilder()
+    .setCustomId(`ticket_embed_modal_${part}_${typeId}`)
+    .setTitle(isBtn ? 'Configurer le bouton' : `Embed ${part === 'panel' ? 'du panneau' : 'du ticket'}`);
+
+  if (isBtn) {
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('label')
+          .setLabel('Libellé du bouton')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Ex: Ouvrir un ticket')
+          .setValue(current.buttonLabel || 'Ouvrir un ticket')
+          .setMaxLength(80)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('emoji')
+          .setLabel('Emoji (optionnel)')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Ex: 🎫 ou ticket')
+          .setValue(current.buttonEmoji || '🎫')
+          .setRequired(false)
+      )
+    );
+  } else {
+    const cfg = part === 'panel' ? (current.panelEmbed || {}) : (current.ticketEmbed || {});
+    const defaults = part === 'panel' ? DEFAULT_PANEL_EMBED : DEFAULT_TICKET_EMBED;
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('title')
+          .setLabel('Titre')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Titre de l\'embed')
+          .setValue(cfg.title || defaults.title || '')
+          .setMaxLength(256)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('description')
+          .setLabel('Description')
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder('Contenu de l\'embed. Variables: {user} {support}...')
+          .setValue(cfg.description || defaults.description || '')
+          .setMaxLength(4000)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('footer')
+          .setLabel('Pied de page')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Texte en bas de l\'embed')
+          .setValue(cfg.footer || defaults.footer || '')
+          .setMaxLength(2048)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('color')
+          .setLabel('Couleur (hex sans #)')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Ex: 5865F2')
+          .setValue((cfg.color ? cfg.color.toString(16) : (defaults.color?.toString(16) || '5865f2')))
+          .setMaxLength(6)
+      )
+    );
   }
+  return modal;
+}
 
-  const guildData = getGuildData(message.guild.id);
-  ensureTicketTypes(guildData, message.guild.id);
-  const types = guildData.settings.ticket.types;
+export async function handleTicketEmbedSelect(interaction) {
+  if (!interaction.memberPermissions?.has('ManageGuild')) {
+    return interaction.update({ content: 'Permission refusée.', embeds: [], components: [] }).catch(() => {});
+  }
+  const typeId = interaction.values[0];
+  const guildData = getGuildData(interaction.guild.id);
+  const types = getTicketTypes(guildData);
   if (!types || !types[typeId]) {
-    return message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: `Type \`${typeId}\` introuvable.` })] });
+    return interaction.update({ content: 'Type introuvable.', embeds: [], components: [] });
   }
 
-  if (field === 'label') types[typeId].buttonLabel = value;
-  else types[typeId].buttonEmoji = value.replace(/[<>]/g, '');
+  const embed = createEmbed('info', {
+    title: `Configuration : ${typeId}`,
+    description: 'Choisissez ce que vous voulez modifier :',
+    fields: [
+      { name: '📋 Embed du panneau', value: 'L\'embed affiché sur le panneau', inline: true },
+      { name: '🎫 Embed du ticket', value: 'L\'embed dans chaque ticket', inline: true },
+      { name: '🔘 Bouton', value: 'Libellé et emoji', inline: true },
+      { name: '👮 Rôle support', value: 'Rôle mentionné à l\'ouverture', inline: true },
+    ],
+  });
 
-  saveGuildData(message.guild.id, guildData);
+  await interaction.update({ embeds: [embed], components: buildEmbedConfigButtons(typeId, guildData) });
+}
 
-  message.reply({ embeds: [createEmbed('success', { title: 'Bouton mis à jour', description: `\`${typeId}\` → ${field}: ${value}` })] });
+export async function handleTicketEmbedButton(interaction) {
+  if (!interaction.memberPermissions?.has('ManageGuild')) {
+    return interaction.reply({ content: 'Permission refusée.', ephemeral: true });
+  }
+  const match = interaction.customId.match(/^ticket_embed_(panel|ticket|btn|role)_(.+)$/);
+  if (!match) return;
+
+  const [, part, typeId] = match;
+  const guildData = getGuildData(interaction.guild.id);
+  ensureTicketTypes(guildData, interaction.guild.id);
+  const types = guildData.settings?.ticket?.types;
+  if (!types || !types[typeId]) {
+    return interaction.reply({ content: 'Type introuvable.', ephemeral: true });
+  }
+
+  const config = types[typeId];
+  if (part === 'role') {
+    const role = config.supportRoleId ? interaction.guild.roles.cache.get(config.supportRoleId) : null;
+    const modal = new ModalBuilder()
+      .setCustomId(`ticket_embed_modal_role_${typeId}`)
+      .setTitle('Rôle support');
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('role')
+          .setLabel('ID du rôle ou mention (@Rôle)')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Ex: 123456789 ou @Support')
+          .setValue(role ? role.id : '')
+          .setRequired(false)
+      )
+    );
+    await interaction.showModal(modal);
+  } else {
+    const modal = buildEmbedModal(typeId, part, config);
+    await interaction.showModal(modal);
+  }
+}
+
+export async function handleTicketEmbedModal(interaction) {
+  if (!interaction.memberPermissions?.has('ManageGuild')) {
+    return interaction.reply({ content: 'Permission refusée.', ephemeral: true });
+  }
+  const match = interaction.customId.match(/^ticket_embed_modal_(panel|ticket|btn|role)_(.+)$/);
+  if (!match) return;
+
+  const [, part, typeId] = match;
+  const guildData = getGuildData(interaction.guild.id);
+  ensureTicketTypes(guildData, interaction.guild.id);
+  const types = guildData.settings?.ticket?.types;
+  if (!types || !types[typeId]) {
+    return interaction.reply({ content: 'Type introuvable.', ephemeral: true });
+  }
+
+  if (part === 'role') {
+    const roleInput = interaction.fields.getTextInputValue('role')?.trim() || '';
+    if (!roleInput) {
+      types[typeId].supportRoleId = null;
+      saveGuildData(interaction.guild.id, guildData);
+      return interaction.reply({
+        embeds: [createEmbed('success', { title: 'Rôle support retiré', description: `Le rôle support du type \`${typeId}\` a été retiré.` })],
+        ephemeral: true,
+      });
+    }
+    const roleId = roleInput.replace(/[<@&>]/g, '');
+    const role = interaction.guild.roles.cache.get(roleId);
+    if (!role) {
+      return interaction.reply({ content: 'Rôle introuvable. Vérifiez l\'ID ou la mention.', ephemeral: true });
+    }
+    types[typeId].supportRoleId = role.id;
+    saveGuildData(interaction.guild.id, guildData);
+    return interaction.reply({
+      embeds: [createEmbed('success', { title: 'Rôle support configuré', description: `Le rôle ${role} sera mentionné pour le type \`${typeId}\`.` })],
+      ephemeral: true,
+    });
+  }
+
+  if (part === 'btn') {
+    const label = interaction.fields.getTextInputValue('label') || 'Ouvrir un ticket';
+    const emoji = interaction.fields.getTextInputValue('emoji') || '';
+    types[typeId].buttonLabel = label;
+    types[typeId].buttonEmoji = emoji.trim() || '🎫';
+  } else {
+    const embedKey = part === 'panel' ? 'panelEmbed' : 'ticketEmbed';
+    if (!types[typeId][embedKey]) types[typeId][embedKey] = {};
+
+    const title = interaction.fields.getTextInputValue('title') || '';
+    const description = interaction.fields.getTextInputValue('description') || '';
+    const footer = interaction.fields.getTextInputValue('footer') || '';
+    const colorStr = (interaction.fields.getTextInputValue('color') || '5865f2').replace('#', '');
+    const color = parseInt(colorStr, 16) || 0x5865F2;
+
+    types[typeId][embedKey].title = title;
+    types[typeId][embedKey].description = description;
+    types[typeId][embedKey].footer = footer;
+    types[typeId][embedKey].color = color;
+  }
+
+  saveGuildData(interaction.guild.id, guildData);
+
+  await interaction.reply({
+    embeds: [createEmbed('success', {
+      title: 'Configuration enregistrée',
+      description: `Les modifications pour le type \`${typeId}\` ont été sauvegardées.`,
+    })],
+    ephemeral: true,
+  });
 }
 
 async function ticketSetup(message, args) {
