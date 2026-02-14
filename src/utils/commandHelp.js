@@ -38,94 +38,100 @@ export const commandHelp = {
   },
 
   customize: {
-    description: 'Personnaliser le profil du bot sur le serveur',
+    description: 'Modifier le profil complet du bot (PP, bannière, activité, bio, etc.)',
+    arguments: 'avatar, banner, activity, bio, username, nickname',
+    syntax: 'set avatar <url> banner <url> activity <type> <nom> [description] [url]',
+    example: 'activity listening Blanka par PNL',
+    module: 'Configuration',
+    aliases: ['profile', 'setprofile'],
     usage: [
-      '`customize bio <texte>` - Définir la bio du bot',
-      '`customize avatar <url>` - Changer l\'avatar du bot',
-      '`customize banner <url>` - Changer la bannière du bot',
-      '`customize nickname <nom>` - Changer le surnom du bot',
-      '`customize username <nom>` - Changer le nom d\'utilisateur du bot',
-      '`customize activity <texte>` - Changer l\'activité du bot',
-      '`customize view` - Voir la configuration actuelle',
+      '`customize set avatar <url> banner <url> activity <type> <nom> [description] [url]` - Tout en une fois',
+      '`customize activity <type> <nom> [description] [url]` - Activité uniquement',
+      'Types: playing, streaming, listening, watching, competing, custom',
+      '`customize avatar <url>` - PP uniquement',
+      '`customize banner <url>` - Bannière uniquement',
+      '`customize view` - Voir la config',
     ],
     examples: [
-      '`customize bio Bot super cool`',
-      '`customize nickname Mon Bot`',
-      '`customize activity Regarde YouTube`',
+      '`customize activity playing Minecraft`',
+      '`customize activity streaming Ma chaîne https://twitch.tv/user`',
+      '`customize activity listening Blanka par PNL`',
+      '`customize activity watching Netflix`',
+      '`customize activity competing League of Legends`',
     ],
-    permissions: 'Réservé au propriétaire du bot',
+    permissions: 'Propriétaire du bot / Gérer le serveur',
   },
 
-  // Commandes de modération
+  // Commandes de modération (style vile)
   ban: {
     description: 'Bannit un membre du serveur',
-    usage: [
-      '`ban <membre> [raison]` - Bannir un membre',
-    ],
-    examples: [
-      '`ban @Utilisateur`',
-      '`ban @Utilisateur Spam`',
-      '`ban 123456789012345678 Raison du ban`',
-    ],
+    arguments: 'membre, raison',
+    syntax: '(membre) [raison]',
+    example: '@User Spam',
+    module: 'Modération',
+    aliases: ['b'],
+    usage: ['`ban <membre> [raison]` - Bannir un membre'],
+    examples: ['`ban @Utilisateur`', '`ban @Utilisateur Spam`'],
     permissions: 'Bannir des membres',
   },
 
   kick: {
     description: 'Expulse un membre du serveur',
-    usage: [
-      '`kick <membre> [raison]` - Expulser un membre',
-    ],
-    examples: [
-      '`kick @Utilisateur`',
-      '`kick @Utilisateur Comportement inapproprié`',
-    ],
+    arguments: 'membre, raison',
+    syntax: '(membre) [raison]',
+    example: '@User Comportement inapproprié',
+    module: 'Modération',
+    aliases: ['k'],
+    usage: ['`kick <membre> [raison]` - Expulser un membre'],
+    examples: ['`kick @Utilisateur`', '`kick @Utilisateur Comportement inapproprié`'],
     permissions: 'Expulser des membres',
   },
 
   timeout: {
     description: 'Mute temporairement un membre',
-    usage: [
-      '`timeout <membre> <minutes> [raison]` - Muter un membre',
-    ],
-    examples: [
-      '`timeout @Utilisateur 60`',
-      '`timeout @Utilisateur 30 Spam`',
-    ],
+    arguments: 'membre, minutes, raison',
+    syntax: '(membre) <minutes> [raison]',
+    example: '@User 60 Spam',
+    module: 'Modération',
+    aliases: ['mute', 'tm'],
+    usage: ['`timeout <membre> <minutes> [raison]` - Muter un membre'],
+    examples: ['`timeout @Utilisateur 60`', '`timeout @Utilisateur 30 Spam`'],
     permissions: 'Modérer les membres',
   },
 
   warn: {
     description: 'Avertit un membre',
-    usage: [
-      '`warn <membre> [raison]` - Avertir un membre',
-    ],
-    examples: [
-      '`warn @Utilisateur`',
-      '`warn @Utilisateur Comportement inapproprié`',
-    ],
+    arguments: 'membre, raison',
+    syntax: '(membre) [raison]',
+    example: '@User Comportement inapproprié',
+    module: 'Modération',
+    aliases: ['w'],
+    usage: ['`warn <membre> [raison]` - Avertir un membre'],
+    examples: ['`warn @Utilisateur`', '`warn @Utilisateur Comportement inapproprié`'],
     permissions: 'Gérer les messages',
   },
 
   unban: {
-    description: 'Débannit un utilisateur',
-    usage: [
-      '`unban <id_utilisateur>` - Débannir un utilisateur',
-    ],
-    examples: [
-      '`unban 123456789012345678`',
-    ],
+    description: 'Débannit un utilisateur par son ID',
+    arguments: 'id_utilisateur',
+    syntax: '<id>',
+    example: '123456789012345678',
+    module: 'Modération',
+    aliases: ['ub'],
+    usage: ['`unban <id_utilisateur>` - Débannir un utilisateur'],
+    examples: ['`unban 123456789012345678`'],
     permissions: 'Bannir des membres',
   },
 
   clear: {
-    description: 'Supprime un nombre de messages',
-    usage: [
-      '`clear <nombre>` - Supprimer des messages (max 100)',
-    ],
-    examples: [
-      '`clear 10`',
-      '`clear 50`',
-    ],
+    description: 'Supprime un nombre de messages (max 100)',
+    arguments: 'nombre',
+    syntax: '<nombre>',
+    example: '50',
+    module: 'Modération',
+    aliases: ['purge', 'prune'],
+    usage: ['`clear <nombre>` - Supprimer des messages (max 100)'],
+    examples: ['`clear 10`', '`clear 50`'],
     permissions: 'Gérer les messages',
   },
 
@@ -145,13 +151,14 @@ export const commandHelp = {
   },
 
   snipe: {
-    description: 'Voir le dernier message supprimé dans ce salon',
-    usage: [
-      '`snipe` - Afficher le dernier message supprimé',
-    ],
-    examples: [
-      '`snipe`',
-    ],
+    description: 'Affiche le dernier message supprimé dans ce salon',
+    arguments: 'aucun',
+    syntax: '',
+    example: '',
+    module: 'Informations',
+    aliases: ['s'],
+    usage: ['`snipe` - Afficher le dernier message supprimé'],
+    examples: ['`snipe`'],
     permissions: 'Aucune',
   },
 
@@ -189,15 +196,16 @@ export const commandHelp = {
     permissions: 'Aucune',
   },
 
-  // Commandes fun
+  // Commandes fun (style vile)
   '8ball': {
     description: 'Pose une question à la boule magique',
-    usage: [
-      '`8ball <question>` - Poser une question',
-    ],
-    examples: [
-      '`8ball Est-ce que je vais gagner à la loterie?`',
-    ],
+    arguments: 'question',
+    syntax: '<question>',
+    example: 'Est-ce que je vais gagner à la loterie ?',
+    module: 'Fun',
+    aliases: ['8b', 'ball'],
+    usage: ['`8ball <question>` - Poser une question'],
+    examples: ['`8ball Est-ce que je vais gagner à la loterie?`'],
     permissions: 'Aucune',
   },
 
@@ -213,39 +221,39 @@ export const commandHelp = {
   },
 
   ping: {
-    description: 'Affiche la latence du bot',
-    usage: [
-      '`ping` - Voir la latence',
-    ],
-    examples: [
-      '`ping`',
-    ],
+    description: 'Affiche la latence du bot et de l\'API Discord',
+    arguments: 'aucun',
+    syntax: '',
+    example: '',
+    module: 'Utilitaires',
+    aliases: ['p', 'latency'],
+    usage: ['`ping` - Voir la latence'],
+    examples: ['`ping`'],
     permissions: 'Aucune',
   },
 
   // Commandes utilitaires
   avatar: {
     description: 'Affiche l\'avatar d\'un utilisateur',
-    usage: [
-      '`avatar [utilisateur]` - Avatar d\'un utilisateur (vous si aucun)',
-    ],
-    examples: [
-      '`avatar`',
-      '`avatar @Utilisateur`',
-    ],
+    arguments: 'utilisateur',
+    syntax: '[utilisateur]',
+    example: '@User',
+    module: 'Utilitaires',
+    aliases: ['av', 'pdp'],
+    usage: ['`avatar [utilisateur]` - Avatar d\'un utilisateur (vous si aucun)'],
+    examples: ['`avatar`', '`avatar @Utilisateur`'],
     permissions: 'Aucune',
   },
 
   calc: {
     description: 'Effectue un calcul mathématique',
-    usage: [
-      '`calc <expression>` - Calculer une expression',
-    ],
-    examples: [
-      '`calc 2 + 2`',
-      '`calc 10 * 5`',
-      '`calc (2 + 3) * 4`',
-    ],
+    arguments: 'expression',
+    syntax: '<expression>',
+    example: '2 + 2 * 5',
+    module: 'Utilitaires',
+    aliases: ['math', 'calcul'],
+    usage: ['`calc <expression>` - Calculer une expression'],
+    examples: ['`calc 2 + 2`', '`calc 10 * 5`'],
     permissions: 'Aucune',
   },
 
@@ -549,14 +557,50 @@ export const commandHelp = {
     permissions: 'Aucune',
   },
 
+  dice: {
+    description: 'Lancer des dés (format XdY ou XdY+Z)',
+    arguments: 'expression',
+    syntax: '<XdY> [±Z]',
+    example: '2d6 ou 4d8+3',
+    module: 'Fun',
+    aliases: ['d', 'roll'],
+    usage: ['`dice <expression>` - Ex: 1d6, 2d20, 4d8+3'],
+    examples: ['`dice 1d6`', '`dice 2d20`', '`dice 4d8+3`'],
+    permissions: 'Aucune',
+  },
+
+  urban: {
+    description: 'Chercher une définition sur Urban Dictionary',
+    arguments: 'terme',
+    syntax: '<terme>',
+    example: 'banger',
+    module: 'Fun',
+    aliases: ['ud', 'urbandict'],
+    usage: ['`urban <terme>` - Définition du terme'],
+    examples: ['`urban banger`', '`urban no cap`'],
+    permissions: 'Aucune',
+  },
+
+  embed: {
+    description: 'Créer un embed personnalisé (titre, description, couleur)',
+    arguments: 'titre, description, couleur',
+    syntax: '<titre> | <description> [| #couleur]',
+    example: 'Annonce | Bienvenue ! | 5865F2',
+    module: 'Utilitaires',
+    usage: ['`embed <titre> | <description> [| couleur]`'],
+    examples: ['`embed Annonce | Bienvenue !`', '`embed Événement | RDV samedi | FF0000`'],
+    permissions: 'Gérer les messages',
+  },
+
   suggest: {
-    description: 'Créer une suggestion',
-    usage: [
-      '`suggest <suggestion>` - Créer une suggestion',
-    ],
-    examples: [
-      '`suggest Ajouter un salon de musique`',
-    ],
+    description: 'Créer une suggestion pour le serveur',
+    arguments: 'suggestion',
+    syntax: '<suggestion>',
+    example: 'Ajouter un salon de musique',
+    module: 'Fun',
+    aliases: ['sug', 'suggestion'],
+    usage: ['`suggest <suggestion>` - Créer une suggestion'],
+    examples: ['`suggest Ajouter un salon de musique`'],
     permissions: 'Aucune',
   },
 
@@ -603,6 +647,30 @@ export const commandHelp = {
     description: 'Affiche le profil d\'un utilisateur',
     usage: ['`profile [@utilisateur|id]`'],
     examples: ['`profile`', '`profile @User`'],
+    permissions: 'Aucune',
+  },
+
+  remind: {
+    description: 'Programmer un rappel (MP ou serveur)',
+    arguments: 'durée, message',
+    syntax: '<durée> <message>',
+    example: '5m Appeler maman',
+    module: 'Perso',
+    aliases: ['rappel', 'reminder'],
+    usage: ['`remind <durée> <message>` - Ex: 30s, 5m, 1h, 2d'],
+    examples: ['`remind 5m Pause`', '`remind 1h Réunion`'],
+    permissions: 'Aucune',
+  },
+
+  notes: {
+    description: 'Gérer tes notes personnelles',
+    arguments: 'action, contenu',
+    syntax: 'add|list|view|remove [contenu]',
+    example: 'add Ma note',
+    module: 'Perso',
+    aliases: ['note', 'n'],
+    usage: ['`notes add <texte>` - Ajouter', '`notes list` - Liste', '`notes view <id>` - Voir', '`notes remove <id>` - Supprimer'],
+    examples: ['`notes add Idée`', '`notes list`'],
     permissions: 'Aucune',
   },
 };

@@ -29,6 +29,12 @@ const MODERATION_COMMANDS = [
   'autorole', 'ticket'
 ];
 
+// Commandes utilisables en MP (bot perso)
+const DM_COMMANDS = [
+  'ai', 'ping', '8ball', 'coinflip', 'random', 'dice', 'urban', 'help', 'avatar', 'calc', 'afk',
+  'remind', 'notes', 'botinfo', 'invite'
+];
+
 // Fonction pour vérifier si l'utilisateur est un propriétaire
 function isOwner(userId) {
   return OWNER_IDS.includes(userId);
@@ -41,6 +47,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.DirectMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
   ],
@@ -61,16 +68,59 @@ for (const file of commandFiles) {
 }
 
 // Événement : Bot prêt
-client.once(Events.ClientReady, () => {
+client.once(Events.ClientReady, async () => {
   console.log(`✅ Bot connecté en tant que ${client.user.tag}!`);
   console.log(`📊 Le bot est sur ${client.guilds.cache.size} serveur(s)`);
   client.guilds.cache.forEach(guild => {
     console.log(`   - ${guild.name} (${guild.id})`);
   });
-  
-  // Définir l'activité par défaut (pas d'activité personnalisée)
-  // L'activité peut être changée avec la commande customize activity
+  const { restoreBotActivity } = await import('./commands/customize.js');
+  await restoreBotActivity(client);
 });
+
+// Construire args et message-like depuis une interaction (pour les commandes prefix)
+function buildContextFromInteraction(interaction) {
+  const users = new Map();
+  const members = new Map();
+  const args = [];
+  let hasUserOpt = false;
+
+  for (const opt of interaction.options.data || []) {
+    if (opt.user) {
+      hasUserOpt = true;
+      users.set(opt.user.id, opt.user);
+      if (opt.member) members.set(opt.member.id, opt.member);
+    }
+    if (opt.value !== undefined && opt.value !== null && opt.type !== 6) {
+      args.push(String(opt.value));
+    }
+  }
+  if (hasUserOpt) {
+    args.unshift('');
+  }
+
+  const usersCol = new Collection(users);
+  const membersCol = new Collection(members);
+
+  const messageLike = {
+    reply: async (content) => {
+      await interaction.reply(content);
+      return { edit: (c) => interaction.editReply(c) };
+    },
+    channel: interaction.channel,
+    author: interaction.user,
+    guild: interaction.guild,
+    member: interaction.member,
+    client: interaction.client,
+    interaction,
+    mentions: {
+      users: usersCol,
+      members: membersCol,
+    },
+  };
+
+  return { messageLike, args };
+}
 
 // Événement : Gestion des interactions (slash commands + boutons)
 client.on(Events.InteractionCreate, async interaction => {
@@ -203,26 +253,50 @@ client.on(Events.InteractionCreate, async interaction => {
 
   if (!interaction.isChatInputCommand()) return;
 
-  const command = client.commands.get(interaction.commandName);
+  const commandName = interaction.commandName;
+  const command = client.commands.get(commandName);
 
   if (!command) {
-    console.error(`Commande slash inconnue: ${interaction.commandName}`);
+    console.error(`Commande slash inconnue: ${commandName}`);
     return;
   }
 
+  // Vérifier les permissions (comme pour les commandes préfixe)
+  if (OWNER_ONLY_COMMANDS.includes(commandName)) {
+    if (!isOwner(interaction.user.id)) {
+      return interaction.reply({
+        content: 'Cette commande est réservée au propriétaire du bot.',
+        ephemeral: true,
+      });
+    }
+  } else if (MODERATION_COMMANDS.includes(commandName)) {
+    if (!isOwner(interaction.user.id) && !isWhitelisted(interaction.user.id)) {
+      return interaction.reply({
+        content: 'Cette commande est réservée au propriétaire du bot ou aux utilisateurs whitelistés.',
+        ephemeral: true,
+      });
+    }
+  }
+
   try {
-    await command.execute(interaction);
+    // La commande ai a sa propre logique (interaction)
+    if (commandName === 'ai') {
+      await command.execute(interaction);
+    } else {
+      const { messageLike, args } = buildContextFromInteraction(interaction);
+      await command.execute(messageLike, args, client);
+    }
   } catch (error) {
-    console.error(`Erreur lors de l'exécution de /${interaction.commandName}:`, error);
+    console.error(`Erreur lors de l'exécution de /${commandName}:`, error);
     const errorMessage = {
       content: 'Une erreur est survenue lors de l\'exécution de cette commande.',
       ephemeral: true
     };
     
     if (interaction.replied || interaction.deferred) {
-      await interaction.followUp(errorMessage);
+      await interaction.followUp(errorMessage).catch(() => {});
     } else {
-      await interaction.reply(errorMessage);
+      await interaction.reply(errorMessage).catch(() => {});
     }
   }
 });
@@ -443,10 +517,40 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
 
 // Événement : Message reçu
 client.on(Events.MessageCreate, async message => {
-  // Ignorer les messages des bots
   if (message.author.bot) return;
-  if (!message.guild) return; // Ignorer les DMs pour l'instant
 
+  // === GESTION DES MPS (bot perso) ===
+  if (!message.guild) {
+    const prefix = getPrefix(null, message.author.id);
+    const isCommand = message.content.startsWith(prefix);
+    if (!isCommand) return;
+
+    const args = message.content.slice(prefix.length).trim().split(/ +/);
+    const commandName = args.shift().toLowerCase();
+    const command = client.commands.get(commandName);
+
+    if (!command) {
+      const helpEmbed = createEmbed('info', {
+        title: '🤖 Bot perso - MP',
+        description: `Commande inconnue. Utilise \`${prefix}help\` pour voir les commandes disponibles en MP.`,
+      });
+      return message.reply({ embeds: [helpEmbed] });
+    }
+    const allowedInDM = DM_COMMANDS.includes(commandName) || (OWNER_ONLY_COMMANDS.includes(commandName) && isOwner(message.author.id));
+    if (!allowedInDM) {
+      return message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: 'Cette commande n\'est pas disponible en MP.' })] });
+    }
+
+    try {
+      await command.execute(message, args, client);
+    } catch (error) {
+      console.error(`Erreur commande MP ${commandName}:`, error);
+      message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: 'Une erreur s\'est produite.' })] }).catch(() => {});
+    }
+    return;
+  }
+
+  // === GESTION DES SERVEURS ===
   // Vérifier les filtres de mots
   const { getGuildData } = await import('./utils/database.js');
   const guildData = getGuildData(message.guild.id);
