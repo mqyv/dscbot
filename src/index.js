@@ -26,7 +26,7 @@ const MODERATION_COMMANDS = [
   'ban', 'kick', 'timeout', 'warn', 'unban', 'clear', 'say', 
   'renew', 'roleall', 'hide', 'unhide', 'lock', 'unlock', 'hideall',
   'alias', 'sticky', 'autoresponder', 'imageonly', 'pin', 'unpin', 'webhook', 'ignore',
-  'autorole', 'ticket'
+  'autorole', 'ticket', 'addrole', 'delrole'
 ];
 
 // Commandes utilisables en MP (bot perso)
@@ -126,80 +126,10 @@ function buildContextFromInteraction(interaction) {
 client.on(Events.InteractionCreate, async interaction => {
   // Gestion des boutons (tickets)
   if (interaction.isButton()) {
-    if (interaction.customId === 'ticket_create') {
+    if (interaction.customId.startsWith('ticket_create')) {
       try {
-        const { getGuildData } = await import('./utils/database.js');
-        const { createEmbed } = await import('./utils/embeds.js');
-        const { ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType } = await import('discord.js');
-
-        const guildData = getGuildData(interaction.guild.id);
-        const ticketConfig = guildData.settings?.ticket;
-        if (!ticketConfig?.categoryId) {
-          return interaction.reply({
-            content: 'Le système de tickets n\'est pas configuré sur ce serveur.',
-            ephemeral: true,
-          });
-        }
-
-        const category = interaction.guild.channels.cache.get(ticketConfig.categoryId);
-        if (!category) {
-          return interaction.reply({
-            content: 'La catégorie des tickets n\'existe plus. Contactez un administrateur.',
-            ephemeral: true,
-          });
-        }
-
-        // Vérifier si l'utilisateur a déjà un ticket ouvert
-        const existingTicket = category.children.cache.find(
-          ch => ch.name.startsWith('ticket-') && ch.permissionOverwrites.cache.has(interaction.user.id)
-        );
-        if (existingTicket) {
-          return interaction.reply({
-            content: `Vous avez déjà un ticket ouvert : ${existingTicket}`,
-            ephemeral: true,
-          });
-        }
-
-        const ticketNumber = (category.children.cache.size + 1).toString().padStart(4, '0');
-        const ticketChannel = await interaction.guild.channels.create({
-          name: `ticket-${ticketNumber}`,
-          type: ChannelType.GuildText,
-          parent: category.id,
-          permissionOverwrites: [
-            { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-            { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
-          ],
-        });
-
-        const supportMention = ticketConfig.supportRoleId
-          ? `<@&${ticketConfig.supportRoleId}>`
-          : 'Le staff';
-
-        const embed = createEmbed('info', {
-          title: `🎫 Ticket #${ticketNumber}`,
-          description: `Bienvenue ${interaction.user} !\n\nDécrivez votre demande et ${supportMention} vous répondra dès que possible.\n\nUtilisez \`,ticket close\` pour fermer ce ticket (staff uniquement).`,
-          footer: { text: `Ouvert par ${interaction.user.tag}` },
-          timestamp: true,
-        });
-
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId('ticket_close_btn')
-            .setLabel('Fermer le ticket')
-            .setEmoji('🔒')
-            .setStyle(ButtonStyle.Danger)
-        );
-
-        await ticketChannel.send({
-          content: `${interaction.user} ${supportMention}`,
-          embeds: [embed],
-          components: [row],
-        });
-
-        await interaction.reply({
-          content: `Votre ticket a été créé : ${ticketChannel}`,
-          ephemeral: true,
-        });
+        const { handleTicketCreate } = await import('./commands/ticket.js');
+        await handleTicketCreate(interaction);
       } catch (error) {
         console.error('Erreur création ticket:', error);
         const errMsg = { content: 'Une erreur est survenue lors de la création du ticket.', ephemeral: true };
@@ -211,39 +141,8 @@ client.on(Events.InteractionCreate, async interaction => {
       }
     } else if (interaction.customId === 'ticket_close_btn') {
       try {
-        const { getGuildData } = await import('./utils/database.js');
-        const { createEmbed } = await import('./utils/embeds.js');
-
-        const guildData = getGuildData(interaction.guild.id);
-        const ticketConfig = guildData.settings?.ticket;
-        if (!ticketConfig?.categoryId) return;
-
-        const category = interaction.guild.channels.cache.get(ticketConfig.categoryId);
-        if (!category || interaction.channel.parentId !== category.id) {
-          return interaction.reply({
-            content: 'Ce bouton ne peut être utilisé que dans un ticket.',
-            ephemeral: true,
-          });
-        }
-
-        const isStaff = interaction.member.permissions.has('ManageChannels') ||
-          (ticketConfig.supportRoleId && interaction.member.roles.cache.has(ticketConfig.supportRoleId));
-
-        if (!isStaff) {
-          return interaction.reply({
-            content: 'Seuls les membres du staff peuvent fermer les tickets.',
-            ephemeral: true,
-          });
-        }
-
-        const embed = createEmbed('warning', {
-          title: 'Ticket fermé',
-          description: `Ce ticket a été fermé par ${interaction.user}.\nLe canal sera supprimé dans 5 secondes.`,
-          timestamp: true,
-        });
-
-        await interaction.reply({ embeds: [embed] });
-        setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
+        const { handleTicketClose } = await import('./commands/ticket.js');
+        await handleTicketClose(interaction);
       } catch (error) {
         console.error('Erreur fermeture ticket:', error);
       }
