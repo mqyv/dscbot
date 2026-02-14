@@ -57,7 +57,7 @@ export default {
     if (subcommand === 'image') {
       const embed = new EmbedBuilder()
         .setColor('#FFA500')
-        .setTitle('Fonctionnalité en développement')
+        .setTitle('RZnctionnalité en développement')
         .setDescription('La génération d\'images sera bientôt disponible.')
         .setTimestamp();
       

@@ -4,7 +4,7 @@ import { readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createEmbed } from './utils/embeds.js';
-import { getPrefix, isWhitelisted, getGuildData, addPreviousName, getUserData, saveUserData } from './utils/database.js';
+import { getPrefix, isWhitelisted, getGuildData, saveGuildData, addPreviousName, getUserData, saveUserData } from './utils/database.js';
 
 config();
 
@@ -25,7 +25,8 @@ const OWNER_ONLY_COMMANDS = [
 const MODERATION_COMMANDS = [
   'ban', 'kick', 'timeout', 'warn', 'unban', 'clear', 'say', 
   'renew', 'roleall', 'hide', 'unhide', 'lock', 'unlock', 'hideall',
-  'alias', 'sticky', 'autoresponder', 'imageonly', 'pin', 'unpin', 'webhook', 'ignore'
+  'alias', 'sticky', 'autoresponder', 'imageonly', 'pin', 'unpin', 'webhook', 'ignore',
+  'autorole', 'ticket'
 ];
 
 // Fonction pour vérifier si l'utilisateur est un propriétaire
@@ -71,8 +72,135 @@ client.once(Events.ClientReady, () => {
   // L'activité peut être changée avec la commande customize activity
 });
 
-// Événement : Gestion des interactions (slash commands)
+// Événement : Gestion des interactions (slash commands + boutons)
 client.on(Events.InteractionCreate, async interaction => {
+  // Gestion des boutons (tickets)
+  if (interaction.isButton()) {
+    if (interaction.customId === 'ticket_create') {
+      try {
+        const { getGuildData } = await import('./utils/database.js');
+        const { createEmbed } = await import('./utils/embeds.js');
+        const { ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType } = await import('discord.js');
+
+        const guildData = getGuildData(interaction.guild.id);
+        const ticketConfig = guildData.settings?.ticket;
+        if (!ticketConfig?.categoryId) {
+          return interaction.reply({
+            content: 'Le système de tickets n\'est pas configuré sur ce serveur.',
+            ephemeral: true,
+          });
+        }
+
+        const category = interaction.guild.channels.cache.get(ticketConfig.categoryId);
+        if (!category) {
+          return interaction.reply({
+            content: 'La catégorie des tickets n\'existe plus. Contactez un administrateur.',
+            ephemeral: true,
+          });
+        }
+
+        // Vérifier si l'utilisateur a déjà un ticket ouvert
+        const existingTicket = category.children.cache.find(
+          ch => ch.name.startsWith('ticket-') && ch.permissionOverwrites.cache.has(interaction.user.id)
+        );
+        if (existingTicket) {
+          return interaction.reply({
+            content: `Vous avez déjà un ticket ouvert : ${existingTicket}`,
+            ephemeral: true,
+          });
+        }
+
+        const ticketNumber = (category.children.cache.size + 1).toString().padStart(4, '0');
+        const ticketChannel = await interaction.guild.channels.create({
+          name: `ticket-${ticketNumber}`,
+          type: ChannelType.GuildText,
+          parent: category.id,
+          permissionOverwrites: [
+            { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+            { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+          ],
+        });
+
+        const supportMention = ticketConfig.supportRoleId
+          ? `<@&${ticketConfig.supportRoleId}>`
+          : 'Le staff';
+
+        const embed = createEmbed('info', {
+          title: `🎫 Ticket #${ticketNumber}`,
+          description: `Bienvenue ${interaction.user} !\n\nDécrivez votre demande et ${supportMention} vous répondra dès que possible.\n\nUtilisez \`,ticket close\` pour fermer ce ticket (staff uniquement).`,
+          footer: { text: `Ouvert par ${interaction.user.tag}` },
+          timestamp: true,
+        });
+
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId('ticket_close_btn')
+            .setLabel('Fermer le ticket')
+            .setEmoji('🔒')
+            .setStyle(ButtonStyle.Danger)
+        );
+
+        await ticketChannel.send({
+          content: `${interaction.user} ${supportMention}`,
+          embeds: [embed],
+          components: [row],
+        });
+
+        await interaction.reply({
+          content: `Votre ticket a été créé : ${ticketChannel}`,
+          ephemeral: true,
+        });
+      } catch (error) {
+        console.error('Erreur création ticket:', error);
+        const errMsg = { content: 'Une erreur est survenue lors de la création du ticket.', ephemeral: true };
+        if (interaction.replied || interaction.deferred) {
+          await interaction.followUp(errMsg).catch(() => {});
+        } else {
+          await interaction.reply(errMsg).catch(() => {});
+        }
+      }
+    } else if (interaction.customId === 'ticket_close_btn') {
+      try {
+        const { getGuildData } = await import('./utils/database.js');
+        const { createEmbed } = await import('./utils/embeds.js');
+
+        const guildData = getGuildData(interaction.guild.id);
+        const ticketConfig = guildData.settings?.ticket;
+        if (!ticketConfig?.categoryId) return;
+
+        const category = interaction.guild.channels.cache.get(ticketConfig.categoryId);
+        if (!category || interaction.channel.parentId !== category.id) {
+          return interaction.reply({
+            content: 'Ce bouton ne peut être utilisé que dans un ticket.',
+            ephemeral: true,
+          });
+        }
+
+        const isStaff = interaction.member.permissions.has('ManageChannels') ||
+          (ticketConfig.supportRoleId && interaction.member.roles.cache.has(ticketConfig.supportRoleId));
+
+        if (!isStaff) {
+          return interaction.reply({
+            content: 'Seuls les membres du staff peuvent fermer les tickets.',
+            ephemeral: true,
+          });
+        }
+
+        const embed = createEmbed('warning', {
+          title: 'Ticket fermé',
+          description: `Ce ticket a été fermé par ${interaction.user}.\nLe canal sera supprimé dans 5 secondes.`,
+          timestamp: true,
+        });
+
+        await interaction.reply({ embeds: [embed] });
+        setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
+      } catch (error) {
+        console.error('Erreur fermeture ticket:', error);
+      }
+    }
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
 
   const command = client.commands.get(interaction.commandName);
@@ -168,6 +296,15 @@ client.on(Events.GuildMemberAdd, async member => {
   const { sendLog } = await import('./utils/logs.js');
   const guildData = getGuildData(member.guild.id);
   
+  // Autorole - attribuer le rôle à l'arrivée
+  const autoroleId = guildData.settings?.autorole;
+  if (autoroleId) {
+    const role = member.guild.roles.cache.get(autoroleId);
+    if (role) {
+      member.roles.add(role).catch(err => console.error('Erreur autorole:', err));
+    }
+  }
+
   // Messages de bienvenue
   const welcomeMessages = guildData.settings?.welcome || {};
   for (const [channelId, message] of Object.entries(welcomeMessages)) {
