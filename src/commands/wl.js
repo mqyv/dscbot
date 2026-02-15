@@ -1,23 +1,22 @@
 import { createEmbed } from '../utils/embeds.js';
-import { getGuildData, saveGuildData, getWhitelist, addToWhitelist, removeFromWhitelist } from '../utils/database.js';
+import { getWhitelist, addToWhitelist, removeFromWhitelist } from '../utils/database.js';
 
 export default {
   data: {
     name: 'wl',
-    description: 'Gérer la whitelist (propriétaire uniquement)',
+    description: 'Gérer la whitelist du serveur (chaque serveur a sa propre whitelist)',
   },
   execute: async (message, args) => {
-    // Vérifier que c'est un propriétaire
-    const OWNER_IDS = [
-      process.env.OWNER_ID || '1214655422980423731',
-      '1405334845420343328',
-      '1230641184209109115',
-    ].filter(id => id);
-    
-    if (!OWNER_IDS.includes(message.author.id)) {
+    if (!message.guild) {
+      return message.reply({
+        embeds: [createEmbed('error', { title: 'Erreur', description: 'Cette commande ne peut être utilisée que sur un serveur.' })],
+      });
+    }
+
+    if (!message.member.permissions.has('ManageGuild')) {
       const errorEmbed = createEmbed('error', {
         title: 'Permission refusée',
-        description: 'Cette commande est réservée aux propriétaires du bot.',
+        description: 'Vous devez avoir la permission "Gérer le serveur" pour gérer la whitelist.',
       });
       return message.reply({ embeds: [errorEmbed] });
     }
@@ -41,13 +40,12 @@ export default {
       default:
         const embed = createEmbed('settings', {
           title: 'Gestion de la whitelist',
-          description: 'Commandes disponibles (propriétaire uniquement) :',
+          description: `Whitelist du serveur **${message.guild.name}** – Les utilisateurs whitelistés peuvent utiliser les commandes de configuration.`,
           fields: [
             { name: '`,wl add <@utilisateur|id>`', value: 'Ajouter un utilisateur à la whitelist', inline: false },
             { name: '`,wl remove <@utilisateur|id>`', value: 'Retirer un utilisateur de la whitelist', inline: false },
-            { name: '`,wl list`', value: 'Voir tous les utilisateurs whitelistés', inline: false },
+            { name: '`,wl list`', value: 'Voir les utilisateurs whitelistés sur ce serveur', inline: false },
             { name: '`,wl view <@utilisateur|id>`', value: 'Vérifier si un utilisateur est whitelisté', inline: false },
-            { name: '\u200b', value: '**Note:** Les utilisateurs whitelistés peuvent utiliser les commandes de modération sur leurs serveurs.', inline: false },
           ],
         });
         message.reply({ embeds: [embed] });
@@ -76,31 +74,23 @@ async function wlAdd(message, args) {
 
   try {
     const user = await message.client.users.fetch(userId).catch(() => null);
-    
-    if (getWhitelist().includes(userId)) {
+
+    if (getWhitelist(message.guild.id).includes(userId)) {
       const errorEmbed = createEmbed('error', {
         title: 'Erreur',
-        description: `L'utilisateur ${user ? user.tag : userId} est déjà dans la whitelist.`,
+        description: `L'utilisateur ${user ? user.tag : userId} est déjà dans la whitelist de ce serveur.`,
       });
       return message.reply({ embeds: [errorEmbed] });
     }
 
-    addToWhitelist(userId);
+    addToWhitelist(message.guild.id, userId);
 
     const successEmbed = createEmbed('success', {
       title: 'Utilisateur ajouté',
-      description: `${user ? `${user.tag} (${user.id})` : userId} a été ajouté à la whitelist.`,
+      description: `${user ? `${user.tag} (${user.id})` : userId} a été ajouté à la whitelist de ce serveur.`,
       fields: [
-        {
-          name: '👤 Utilisateur',
-          value: user ? `${user} (${user.tag})` : userId,
-          inline: true,
-        },
-        {
-          name: '🆔 ID',
-          value: userId,
-          inline: true,
-        },
+        { name: '👤 Utilisateur', value: user ? `${user} (${user.tag})` : userId, inline: true },
+        { name: '🆔 ID', value: userId, inline: true },
       ],
     });
 
@@ -136,31 +126,23 @@ async function wlRemove(message, args) {
 
   try {
     const user = await message.client.users.fetch(userId).catch(() => null);
-    
-    if (!getWhitelist().includes(userId)) {
+
+    if (!getWhitelist(message.guild.id).includes(userId)) {
       const errorEmbed = createEmbed('error', {
         title: 'Erreur',
-        description: `L'utilisateur ${user ? user.tag : userId} n'est pas dans la whitelist.`,
+        description: `L'utilisateur ${user ? user.tag : userId} n'est pas dans la whitelist de ce serveur.`,
       });
       return message.reply({ embeds: [errorEmbed] });
     }
 
-    removeFromWhitelist(userId);
+    removeFromWhitelist(message.guild.id, userId);
 
     const successEmbed = createEmbed('success', {
       title: 'Utilisateur retiré',
-      description: `${user ? `${user.tag} (${user.id})` : userId} a été retiré de la whitelist.`,
+      description: `${user ? `${user.tag} (${user.id})` : userId} a été retiré de la whitelist de ce serveur.`,
       fields: [
-        {
-          name: '👤 Utilisateur',
-          value: user ? `${user} (${user.tag})` : userId,
-          inline: true,
-        },
-        {
-          name: '🆔 ID',
-          value: userId,
-          inline: true,
-        },
+        { name: '👤 Utilisateur', value: user ? `${user} (${user.tag})` : userId, inline: true },
+        { name: '🆔 ID', value: userId, inline: true },
       ],
     });
 
@@ -176,12 +158,12 @@ async function wlRemove(message, args) {
 }
 
 async function wlList(message) {
-  const whitelist = getWhitelist();
+  const whitelist = getWhitelist(message.guild.id);
 
   if (whitelist.length === 0) {
     const embed = createEmbed('info', {
       title: 'Whitelist',
-      description: 'Aucun utilisateur dans la whitelist.',
+      description: `Aucun utilisateur dans la whitelist de **${message.guild.name}**.`,
     });
     return message.reply({ embeds: [embed] });
   }
@@ -200,15 +182,9 @@ async function wlList(message) {
     const userList = users.map(u => `• ${u.user ? `${u.user} (${u.tag})` : u.tag} - \`${u.id}\``).join('\n');
 
     const embed = createEmbed('info', {
-      title: 'Whitelist',
-      description: `**${whitelist.length} utilisateur(s) whitelisté(s):**\n\n${userList}`,
-      fields: [
-        {
-          name: '📊 Total',
-          value: `${whitelist.length}`,
-          inline: true,
-        },
-      ],
+      title: `Whitelist - ${message.guild.name}`,
+      description: `**${whitelist.length} utilisateur(s) whitelisté(s) sur ce serveur :**\n\n${userList}`,
+      fields: [{ name: '📊 Total', value: `${whitelist.length}`, inline: true }],
     });
 
     message.reply({ embeds: [embed] });
@@ -243,27 +219,15 @@ async function wlView(message, args) {
 
   try {
     const user = await message.client.users.fetch(userId).catch(() => null);
-    const isWhitelisted = getWhitelist().includes(userId);
+    const isInWl = getWhitelist(message.guild.id).includes(userId);
 
-    const embed = createEmbed(isWhitelisted ? 'success' : 'info', {
-        title: isWhitelisted ? 'Whitelisté' : 'Non whitelisté',
-      description: `${user ? `${user.tag} (${user.id})` : userId} ${isWhitelisted ? 'est' : 'n\'est pas'} dans la whitelist.`,
+    const embed = createEmbed(isInWl ? 'success' : 'info', {
+      title: isInWl ? 'Whitelisté' : 'Non whitelisté',
+      description: `${user ? `${user.tag} (${user.id})` : userId} ${isInWl ? 'est' : 'n\'est pas'} dans la whitelist de ce serveur.`,
       fields: [
-        {
-          name: '👤 Utilisateur',
-          value: user ? `${user} (${user.tag})` : userId,
-          inline: true,
-        },
-        {
-          name: '🆔 ID',
-          value: userId,
-          inline: true,
-        },
-        {
-          name: '📋 Statut',
-          value: isWhitelisted ? '✅ Whitelisté' : '❌ Non whitelisté',
-          inline: true,
-        },
+        { name: '👤 Utilisateur', value: user ? `${user} (${user.tag})` : userId, inline: true },
+        { name: '🆔 ID', value: userId, inline: true },
+        { name: '📋 Statut', value: isInWl ? '✅ Whitelisté' : '❌ Non whitelisté', inline: true },
       ],
     });
 

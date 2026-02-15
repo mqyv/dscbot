@@ -101,46 +101,46 @@ export function getPrefix(guildId, userId) {
   return guildData.prefix || ',';
 }
 
-// Whitelist - Liste globale des utilisateurs autorisés
-function getWhitelistData() {
-  const db = loadDB();
-  if (!db.whitelist) {
-    db.whitelist = [];
-    saveDB(db);
+// Whitelist - Par serveur (chaque serveur a sa propre whitelist)
+function getGuildWhitelist(guildId) {
+  if (!guildId) return [];
+  const guildData = getGuildData(guildId);
+  if (!guildData.whitelist) {
+    guildData.whitelist = [];
+    saveGuildData(guildId, guildData);
   }
-  return db.whitelist;
+  return guildData.whitelist;
 }
 
-// Obtenir la whitelist
-export function getWhitelist() {
-  return getWhitelistData();
+// Obtenir la whitelist d'un serveur
+export function getWhitelist(guildId) {
+  return getGuildWhitelist(guildId);
 }
 
-// Ajouter à la whitelist
-export function addToWhitelist(userId) {
-  const db = loadDB();
-  if (!db.whitelist) {
-    db.whitelist = [];
-  }
-  if (!db.whitelist.includes(userId)) {
-    db.whitelist.push(userId);
-    saveDB(db);
+// Ajouter à la whitelist d'un serveur
+export function addToWhitelist(guildId, userId) {
+  if (!guildId) return;
+  const guildData = getGuildData(guildId);
+  if (!guildData.whitelist) guildData.whitelist = [];
+  if (!guildData.whitelist.includes(userId)) {
+    guildData.whitelist.push(userId);
+    saveGuildData(guildId, guildData);
   }
 }
 
-// Retirer de la whitelist
-export function removeFromWhitelist(userId) {
-  const db = loadDB();
-  if (!db.whitelist) {
-    db.whitelist = [];
-  }
-  db.whitelist = db.whitelist.filter(id => id !== userId);
-  saveDB(db);
+// Retirer de la whitelist d'un serveur
+export function removeFromWhitelist(guildId, userId) {
+  if (!guildId) return;
+  const guildData = getGuildData(guildId);
+  if (!guildData.whitelist) guildData.whitelist = [];
+  guildData.whitelist = guildData.whitelist.filter(id => id !== userId);
+  saveGuildData(guildId, guildData);
 }
 
-// Vérifier si un utilisateur est whitelisté
-export function isWhitelisted(userId) {
-  return getWhitelist().includes(userId);
+// Vérifier si un utilisateur est whitelisté sur un serveur
+export function isWhitelisted(userId, guildId) {
+  if (!guildId) return false;
+  return getGuildWhitelist(guildId).includes(userId);
 }
 
 // Notes personnelles (pour commande en MP)

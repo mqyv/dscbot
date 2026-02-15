@@ -15,15 +15,11 @@ const OWNER_IDS = [
   '1230641184209109115', // Owner supplémentaire
 ].filter(id => id); // Filtrer les IDs vides
 
-// Commandes réservées au propriétaire uniquement (modification du bot)
-const OWNER_ONLY_COMMANDS = [
-  'customize', 'settings', 'prefix', 'filter', 'welcome', 'goodbye', 
-  'logs', 'boosterrole', 'invite', 'steal', 'extractemojis', 'emoji', 'wl'
-];
-
-// Commandes de modération accessibles aux whitelistés sur leurs serveurs
-const MODERATION_COMMANDS = [
-  'ban', 'kick', 'timeout', 'warn', 'unban', 'clear', 'say', 
+// Toutes les commandes accessibles au propriétaire OU aux whitelistés (whitelist par serveur)
+const WL_COMMANDS = [
+  'customize', 'settings', 'prefix', 'filter', 'welcome', 'goodbye',
+  'logs', 'boosterrole', 'invite', 'steal', 'extractemojis', 'emoji', 'wl',
+  'ban', 'kick', 'timeout', 'warn', 'unban', 'clear', 'say',
   'renew', 'roleall', 'hide', 'unhide', 'lock', 'unlock', 'hideall',
   'alias', 'sticky', 'autoresponder', 'imageonly', 'pin', 'unpin', 'webhook', 'ignore',
   'autorole', 'ticket', 'addrole', 'delrole'
@@ -197,18 +193,12 @@ client.on(Events.InteractionCreate, async interaction => {
     return;
   }
 
-  // Vérifier les permissions (comme pour les commandes préfixe)
-  if (OWNER_ONLY_COMMANDS.includes(commandName)) {
-    if (!isOwner(interaction.user.id)) {
+  // Vérifier les permissions : propriétaire OU whitelisté sur ce serveur
+  if (WL_COMMANDS.includes(commandName)) {
+    const guildId = interaction.guild?.id;
+    if (!isOwner(interaction.user.id) && !isWhitelisted(interaction.user.id, guildId)) {
       return interaction.reply({
-        content: 'Cette commande est réservée au propriétaire du bot.',
-        ephemeral: true,
-      });
-    }
-  } else if (MODERATION_COMMANDS.includes(commandName)) {
-    if (!isOwner(interaction.user.id) && !isWhitelisted(interaction.user.id)) {
-      return interaction.reply({
-        content: 'Cette commande est réservée au propriétaire du bot ou aux utilisateurs whitelistés.',
+        content: 'Cette commande est réservée au propriétaire du bot ou aux utilisateurs whitelistés sur ce serveur.',
         ephemeral: true,
       });
     }
@@ -472,7 +462,7 @@ client.on(Events.MessageCreate, async message => {
       });
       return message.reply({ embeds: [helpEmbed] });
     }
-    const allowedInDM = DM_COMMANDS.includes(commandName) || (OWNER_ONLY_COMMANDS.includes(commandName) && isOwner(message.author.id));
+    const allowedInDM = DM_COMMANDS.includes(commandName) || (WL_COMMANDS.includes(commandName) && isOwner(message.author.id));
     if (!allowedInDM) {
       return message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: 'Cette commande n\'est pas disponible en MP.' })] });
     }
@@ -563,22 +553,13 @@ client.on(Events.MessageCreate, async message => {
 
   if (!command) return;
 
-  // Vérifier les permissions selon le type de commande
-  if (OWNER_ONLY_COMMANDS.includes(commandName)) {
-    // Commandes réservées au propriétaire uniquement (modification du bot)
-    if (!isOwner(message.author.id)) {
+  // Vérifier les permissions : propriétaire OU whitelisté sur ce serveur
+  if (WL_COMMANDS.includes(commandName)) {
+    const guildId = message.guild?.id;
+    if (!isOwner(message.author.id) && !isWhitelisted(message.author.id, guildId)) {
       const errorEmbed = createEmbed('error', {
         title: 'Permission refusée',
-        description: 'Cette commande est réservée au propriétaire du bot.',
-      });
-      return message.reply({ embeds: [errorEmbed] });
-    }
-  } else if (MODERATION_COMMANDS.includes(commandName)) {
-    // Commandes de modération : propriétaire OU whitelisté
-    if (!isOwner(message.author.id) && !isWhitelisted(message.author.id)) {
-      const errorEmbed = createEmbed('error', {
-        title: 'Permission refusée',
-        description: 'Cette commande est réservée au propriétaire du bot ou aux utilisateurs whitelistés.',
+        description: 'Cette commande est réservée au propriétaire du bot ou aux utilisateurs whitelistés sur ce serveur.',
       });
       return message.reply({ embeds: [errorEmbed] });
     }
