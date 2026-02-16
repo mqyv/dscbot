@@ -10,11 +10,111 @@ export default {
 
     if (subcommand === 'rename') {
       await emojiRename(message, args.slice(1));
+    } else if (subcommand === 'steal') {
+      await emojiSteal(message, args.slice(1));
     } else {
       await emojiInfo(message, args);
     }
   },
 };
+
+async function emojiSteal(message, args) {
+  if (!message.member.permissions.has('ManageEmojisAndStickers')) {
+    const errorEmbed = createEmbed('error', {
+      title: 'Permission refusée',
+      description: 'Vous devez avoir la permission "Gérer les emojis et stickers".',
+    });
+    return message.reply({ embeds: [errorEmbed] });
+  }
+
+  if (!args[0]) {
+    const errorEmbed = createEmbed('error', {
+      title: 'Erreur',
+      description: 'Usage: `,emoji steal <emoji>` ou `,emoji steal <:nom:id>` ou `,emoji steal id`\nExemple: `,emoji steal :custom_emoji:` ou `,emoji steal 123456789012345678`',
+    });
+    return message.reply({ embeds: [errorEmbed] });
+  }
+
+  const emojiRegex = /<a?:(\w+):(\d+)>/;
+  const input = args[0].replace(/["']/g, '');
+  let emojiId, emojiName, isAnimated;
+
+  const match = input.match(emojiRegex);
+  if (match) {
+    emojiName = match[1];
+    emojiId = match[2];
+    isAnimated = input.startsWith('<a:');
+  } else if (/^\d+$/.test(input)) {
+    emojiId = input;
+    emojiName = `emoji_${input.slice(-8)}`;
+    isAnimated = null;
+  } else {
+    return message.reply({
+      embeds: [createEmbed('error', { title: 'Erreur', description: 'Format invalide. Utilisez un emoji personnalisé ou un ID numérique.' })],
+    });
+  }
+
+  const emojiCount = message.guild.emojis.cache.size;
+  const maxEmojis = message.guild.premiumTier === 'TIER_3' ? 500 : message.guild.premiumTier === 'TIER_2' ? 300 : message.guild.premiumTier === 'TIER_1' ? 100 : 50;
+  if (emojiCount >= maxEmojis) {
+    return message.reply({
+      embeds: [createEmbed('error', { title: 'Erreur', description: `Le serveur a atteint la limite d'emojis (${maxEmojis}).` })],
+    });
+  }
+
+  const existing = message.guild.emojis.cache.find(e => e.name === emojiName);
+  if (existing) {
+    return message.reply({
+      embeds: [createEmbed('warning', { title: 'Déjà existant', description: `Un emoji nommé \`${emojiName}\` existe déjà. Utilisez un autre nom ou supprimez-le.` })],
+    });
+  }
+
+  const ext = isAnimated === true ? 'gif' : isAnimated === false ? 'png' : null;
+  let buffer;
+  if (ext) {
+    const url = `https://cdn.discordapp.com/emojis/${emojiId}.${ext}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      return message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: 'Impossible de récupérer l\'emoji.' })] });
+    }
+    buffer = Buffer.from(await res.arrayBuffer());
+  } else {
+    const gifRes = await fetch(`https://cdn.discordapp.com/emojis/${emojiId}.gif`);
+    if (gifRes.ok) {
+      buffer = Buffer.from(await gifRes.arrayBuffer());
+    } else {
+      const pngRes = await fetch(`https://cdn.discordapp.com/emojis/${emojiId}.png`);
+      if (!pngRes.ok) {
+        return message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: 'Emoji introuvable. Vérifiez l\'ID.' })] });
+      }
+      buffer = Buffer.from(await pngRes.arrayBuffer());
+    }
+  }
+
+  try {
+    const newEmoji = await message.guild.emojis.create({
+      attachment: buffer,
+      name: emojiName,
+      reason: `Volé par ${message.author.tag}`,
+    });
+
+    message.reply({
+      embeds: [createEmbed('success', {
+        title: 'Emoji ajouté',
+        description: `${newEmoji} a été ajouté au serveur.`,
+        thumbnail: newEmoji.url,
+        fields: [
+          { name: 'Nom', value: `\`${emojiName}\``, inline: true },
+          { name: 'Format', value: newEmoji.toString(), inline: true },
+        ],
+      })],
+    });
+  } catch (error) {
+    message.reply({
+      embeds: [createEmbed('error', { title: 'Erreur', description: error.message || 'Impossible d\'ajouter l\'emoji.' })],
+    });
+  }
+}
 
 async function emojiInfo(message, args) {
   if (!args[0]) {

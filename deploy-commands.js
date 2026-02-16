@@ -43,11 +43,14 @@ const COMMAND_OPTIONS = {
     .addStringOption(o => o.setName('nickname').setDescription('Surnom sur le serveur').setRequired(false)),
 };
 
+// Seule /ai est déployée en slash - le reste utilise le préfixe (,)
+const SLASH_COMMANDS = ['ai'];
+
 const commands = [];
 const commandsPath = join(__dirname, 'src', 'commands');
 const commandFiles = readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
-console.log('Chargement des commandes slash...');
+console.log('Chargement des commandes slash (uniquement /ai)...');
 
 for (const file of commandFiles) {
   const filePath = join(commandsPath, file);
@@ -69,9 +72,8 @@ for (const file of commandFiles) {
     slashData = builder.toJSON();
   }
 
-  // Activer les commandes en MP (comme "Fréquemment utilisés" dans l'image)
-  // contexts: 0=Guild, 1=Bot DM, 2=Private Channel (DMs/groupes)
-  // integration_types: 0=Guild install, 1=User install ("Ajouter à mes apps")
+  if (!SLASH_COMMANDS.includes(slashData.name)) continue;
+
   slashData.contexts = [0, 1, 2];
   slashData.integration_types = [0, 1];
 

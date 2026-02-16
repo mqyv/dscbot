@@ -11,6 +11,8 @@
     "start:all": "node src/callback-server.js & node src/index.js",
     "setup": "node src/setup.js",
     "deploy": "node deploy-commands.js",
+    "clear:commands": "node clear-commands.js",
+    "deploy:full": "node clear-commands.js && node deploy-commands.js",
     "pm2:start": "pm2 start ecosystem.config.cjs",
     "pm2:stop": "pm2 stop dscbot",
     "pm2:restart": "pm2 restart dscbot",

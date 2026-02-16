@@ -2,19 +2,68 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, Chan
 import { createEmbed } from '../utils/embeds.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
 
-const DEFAULT_PANEL_EMBED = {
-  title: '🎫 Système de tickets',
-  description: 'Cliquez sur un bouton ci-dessous pour ouvrir un ticket.\n\nUn membre de l\'équipe vous répondra dès que possible.',
-  footer: 'Ne créez un ticket que si nécessaire',
-  color: 0x5865F2,
+const TEXTS = {
+  fr: {
+    panelEmbed: {
+      title: '🎫 Système de tickets',
+      description: 'Cliquez sur un bouton ci-dessous pour ouvrir un ticket.\n\nUn membre de l\'équipe vous répondra dès que possible.',
+      footer: 'Ne créez un ticket que si nécessaire',
+      color: 0x5865F2,
+    },
+    ticketEmbed: {
+      title: '🎫 Ticket #{ticketnumber}',
+      description: 'Bienvenue {user} !\n\nDécrivez votre demande et {support} vous répondra dès que possible.\n\nUtilisez `,ticket close` pour fermer ce ticket (staff uniquement).',
+      footer: 'Ouvert par {username}',
+      color: 0x5865F2,
+    },
+    buttonLabel: 'Ouvrir un ticket',
+    closeButton: 'Fermer le ticket',
+    supportDefault: 'Le staff',
+    notConfigured: 'Le système de tickets n\'est pas configuré sur ce serveur.',
+    categoryGone: 'La catégorie des tickets n\'existe plus. Contactez un administrateur.',
+    alreadyOpen: 'Vous avez déjà un ticket ouvert :',
+    ticketCreated: 'Votre ticket a été créé :',
+    closeBtnOnlyInTicket: 'Ce bouton ne peut être utilisé que dans un ticket.',
+    onlyStaffClose: 'Seuls les membres du staff peuvent fermer les tickets.',
+    ticketClosed: 'Ticket fermé',
+    closedBy: 'Ce ticket a été fermé par',
+    channelDeletedIn: 'Le canal sera supprimé dans 5 secondes.',
+  },
+  en: {
+    panelEmbed: {
+      title: '🎫 Ticket System',
+      description: 'Click a button below to open a ticket.\n\nA staff member will respond as soon as possible.',
+      footer: 'Only create a ticket if necessary',
+      color: 0x5865F2,
+    },
+    ticketEmbed: {
+      title: '🎫 Ticket #{ticketnumber}',
+      description: 'Welcome {user}!\n\nDescribe your request and {support} will respond as soon as possible.\n\nUse `,ticket close` to close this ticket (staff only).',
+      footer: 'Opened by {username}',
+      color: 0x5865F2,
+    },
+    buttonLabel: 'Open a ticket',
+    closeButton: 'Close ticket',
+    supportDefault: 'The staff',
+    notConfigured: 'The ticket system is not configured on this server.',
+    categoryGone: 'The ticket category no longer exists. Contact an administrator.',
+    alreadyOpen: 'You already have an open ticket:',
+    ticketCreated: 'Your ticket has been created:',
+    closeBtnOnlyInTicket: 'This button can only be used in a ticket.',
+    onlyStaffClose: 'Only staff members can close tickets.',
+    ticketClosed: 'Ticket closed',
+    closedBy: 'This ticket was closed by',
+    channelDeletedIn: 'The channel will be deleted in 5 seconds.',
+  },
 };
 
-const DEFAULT_TICKET_EMBED = {
-  title: '🎫 Ticket #{ticketnumber}',
-  description: 'Bienvenue {user} !\n\nDécrivez votre demande et {support} vous répondra dès que possible.\n\nUtilisez `,ticket close` pour fermer ce ticket (staff uniquement).',
-  footer: 'Ouvert par {username}',
-  color: 0x5865F2,
-};
+const DEFAULT_PANEL_EMBED = TEXTS.fr.panelEmbed;
+const DEFAULT_TICKET_EMBED = TEXTS.fr.ticketEmbed;
+
+function getTicketLang(guildData) {
+  const lang = guildData?.settings?.ticket?.lang || 'fr';
+  return TEXTS[lang] || TEXTS.fr;
+}
 
 function formatEmbedText(text, vars = {}) {
   if (!text || typeof text !== 'string') return '';
@@ -76,25 +125,235 @@ export default {
       case 'config':
         await ticketConfig(message, args.slice(1));
         break;
+      case 'lang':
+      case 'language':
+        await ticketLang(message, args.slice(1));
+        break;
       default:
-        const embed = createEmbed('settings', {
-          title: 'Système de tickets',
-          description: 'Système de tickets avec types multiples et embeds personnalisables.',
-          fields: [
-            { name: '`,ticket addtype <id> <catégorie>`', value: 'Ajouter un type de ticket (ex: support, report)', inline: false },
-            { name: '`,ticket removetype <id>`', value: 'Supprimer un type de ticket', inline: false },
-            { name: '`,ticket setup [type1] [type2]...`', value: 'Créer le panneau (tous les types ou spécifiques)', inline: false },
-            { name: '`,ticket embed`', value: 'Ouvrir la configuration des embeds (interactif)', inline: false },
-            { name: '`,ticket config`', value: 'Voir la configuration actuelle', inline: false },
-            { name: '`,ticket close` / `add` / `remove`', value: 'Dans un canal ticket', inline: false },
-            { name: 'Variables embeds', value: '`{user}` `{username}` `{support}` `{server}` `{ticketnumber}`', inline: false },
-          ],
-        });
-        message.reply({ embeds: [embed] });
+        await ticketMenu(message);
         break;
     }
   },
 };
+
+async function ticketMenu(message) {
+  const guildData = getGuildData(message.guild.id);
+  const types = getTicketTypes(guildData);
+  const hasTypes = Object.keys(types).length > 0;
+
+  const embed = createEmbed('settings', {
+    title: '🎫 Système de tickets',
+    description: 'Choisissez une action ci-dessous pour configurer ou gérer les tickets.',
+    fields: [
+      { name: 'Configuration', value: 'Voir la config actuelle (types, rôles, langue)', inline: true },
+      { name: 'Embeds', value: 'Personnaliser panneau, ticket, boutons, messages', inline: true },
+      { name: 'Panneau', value: 'Créer le message avec boutons d\'ouverture', inline: true },
+      { name: 'Langue', value: 'FR ou EN pour tous les textes', inline: true },
+      { name: 'Ajouter type', value: 'Nouveau type (support, report...)', inline: true },
+      { name: 'Supprimer type', value: 'Retirer un type de ticket', inline: true },
+      { name: 'Variables', value: '`{user}` `{username}` `{support}` `{server}` `{ticketnumber}`', inline: false },
+    ],
+  });
+
+  const options = [
+    { label: '📋 Configuration', value: 'config', description: 'Voir la configuration actuelle' },
+    { label: '🎨 Embeds & messages', value: 'embed', description: 'Personnaliser embeds, boutons, textes' },
+    { label: '📌 Créer panneau', value: 'panel', description: 'Message avec boutons d\'ouverture', disabled: !hasTypes },
+    { label: '🌐 Langue', value: 'lang', description: 'Choisir FR ou EN' },
+    { label: '➕ Ajouter type', value: 'addtype', description: 'Nouveau type de ticket' },
+    { label: '➖ Supprimer type', value: 'removetype', description: 'Retirer un type', disabled: !hasTypes },
+    { label: '❓ Aide', value: 'help', description: 'Liste des commandes' },
+  ];
+
+  const select = new StringSelectMenuBuilder()
+    .setCustomId('ticket_menu_select')
+    .setPlaceholder('Que voulez-vous faire ?')
+    .addOptions(options.filter(o => !o.disabled).map(({ label, value, description }) => ({
+      label,
+      value,
+      description: description || undefined,
+    })));
+
+  const row = new ActionRowBuilder().addComponents(select);
+  await message.reply({ embeds: [embed], components: [row] });
+}
+
+function buildMessageLikeFromInteraction(interaction) {
+  return {
+    reply: async (content) => {
+      await interaction.reply(content);
+      return { edit: (c) => interaction.editReply(c) };
+    },
+    channel: interaction.channel,
+    author: interaction.user,
+    guild: interaction.guild,
+    member: interaction.member,
+    client: interaction.client,
+  };
+}
+
+export async function handleTicketMenuSelect(interaction) {
+  if (!interaction.memberPermissions?.has('ManageGuild')) {
+    return interaction.reply({ content: 'Permission refusée.', ephemeral: true });
+  }
+  const value = interaction.values[0];
+  const messageLike = buildMessageLikeFromInteraction(interaction);
+
+  if (value === 'config') {
+    await ticketConfig(messageLike, []);
+    return;
+  }
+  if (value === 'embed') {
+    await ticketEmbed(messageLike);
+    return;
+  }
+  if (value === 'lang') {
+    const select = new StringSelectMenuBuilder()
+      .setCustomId('ticket_lang_select')
+      .setPlaceholder('Choisir la langue')
+      .addOptions(
+        { label: 'Français', value: 'fr', description: 'Langue française' },
+        { label: 'English', value: 'en', description: 'English language' }
+      );
+    await interaction.reply({
+      content: 'Choisissez la langue :',
+      components: [new ActionRowBuilder().addComponents(select)],
+      ephemeral: true,
+    });
+    return;
+  }
+  if (value === 'panel') {
+    const guildData = getGuildData(interaction.guild.id);
+    const types = getTicketTypes(guildData);
+    const typeOptions = [
+      { label: 'Tous les types', value: '__all__', description: 'Inclure tous les types dans le panneau' },
+      ...Object.keys(types).map(id => ({
+        label: id.charAt(0).toUpperCase() + id.slice(1),
+        value: id,
+        description: `Inclure le type "${id}"`,
+      })),
+    ];
+    const select = new StringSelectMenuBuilder()
+      .setCustomId('ticket_panel_type_select')
+      .setPlaceholder('Types à inclure')
+      .addOptions(typeOptions)
+      .setMinValues(1)
+      .setMaxValues(typeOptions.length);
+    await interaction.reply({
+      content: 'Sélectionnez les types à inclure dans le panneau :',
+      components: [new ActionRowBuilder().addComponents(select)],
+      ephemeral: true,
+    });
+    return;
+  }
+  if (value === 'addtype') {
+    const modal = new ModalBuilder()
+      .setCustomId('ticket_addtype_modal')
+      .setTitle('Ajouter un type de ticket');
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('typeid')
+          .setLabel('ID du type')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Ex: support, report, bug')
+          .setMaxLength(32)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('categoryid')
+          .setLabel('ID de la catégorie')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Collez l\'ID de la catégorie')
+          .setMaxLength(20)
+      )
+    );
+    await interaction.showModal(modal);
+    return;
+  }
+  if (value === 'removetype') {
+    const guildData = getGuildData(interaction.guild.id);
+    const types = getTicketTypes(guildData);
+    const typeOptions = Object.keys(types).map(id => ({
+      label: id.charAt(0).toUpperCase() + id.slice(1),
+      value: id,
+      description: `Supprimer le type "${id}"`,
+    }));
+    const select = new StringSelectMenuBuilder()
+      .setCustomId('ticket_removetype_select')
+      .setPlaceholder('Type à supprimer')
+      .addOptions(typeOptions);
+    await interaction.reply({
+      content: 'Quel type voulez-vous supprimer ?',
+      components: [new ActionRowBuilder().addComponents(select)],
+      ephemeral: true,
+    });
+    return;
+  }
+  if (value === 'help') {
+    const embed = createEmbed('settings', {
+      title: 'Système de tickets – Aide',
+      description: 'Commandes disponibles :',
+      fields: [
+        { name: '`,ticket addtype <id> <catégorie>`', value: 'Ajouter un type (ex: support, report)', inline: false },
+        { name: '`,ticket removetype <id>`', value: 'Supprimer un type', inline: false },
+        { name: '`,ticket setup [types...]`', value: 'Créer le panneau', inline: false },
+        { name: '`,ticket embed`', value: 'Configurer embeds, boutons, messages', inline: false },
+        { name: '`,ticket lang fr|en`', value: 'Langue FR ou EN', inline: false },
+        { name: '`,ticket config`', value: 'Voir la configuration', inline: false },
+        { name: 'Dans un ticket', value: '`close` `add @user` `remove @user`', inline: false },
+        { name: 'Variables', value: '`{user}` `{username}` `{support}` `{server}` `{ticketnumber}`', inline: false },
+      ],
+    });
+    await interaction.reply({ embeds: [embed], ephemeral: true });
+  }
+}
+
+export async function handleTicketLangSelect(interaction) {
+  if (!interaction.memberPermissions?.has('ManageGuild')) {
+    return interaction.reply({ content: 'Permission refusée.', ephemeral: true });
+  }
+  const lang = interaction.values[0];
+  const guildData = getGuildData(interaction.guild.id);
+  if (!guildData.settings) guildData.settings = {};
+  if (!guildData.settings.ticket) guildData.settings.ticket = {};
+  guildData.settings.ticket.lang = lang;
+  saveGuildData(interaction.guild.id, guildData);
+  const msg = lang === 'fr' ? 'Langue définie : Français' : 'Language set: English';
+  await interaction.reply({ content: msg, ephemeral: true });
+}
+
+export async function handleTicketPanelTypeSelect(interaction) {
+  if (!interaction.memberPermissions?.has('ManageGuild')) {
+    return interaction.reply({ content: 'Permission refusée.', ephemeral: true });
+  }
+  const selected = interaction.values || [];
+  const args = selected.includes('__all__') ? [] : selected;
+  const messageLike = buildMessageLikeFromInteraction(interaction);
+  await ticketSetup(messageLike, args);
+}
+
+export async function handleTicketRemovetypeSelect(interaction) {
+  if (!interaction.memberPermissions?.has('ManageGuild')) {
+    return interaction.reply({ content: 'Permission refusée.', ephemeral: true });
+  }
+  const typeId = interaction.values[0];
+  const messageLike = buildMessageLikeFromInteraction(interaction);
+  await ticketRemoveType(messageLike, [typeId]);
+}
+
+export async function handleTicketAddtypeModal(interaction) {
+  if (!interaction.memberPermissions?.has('ManageGuild')) {
+    return interaction.reply({ content: 'Permission refusée.', ephemeral: true });
+  }
+  const typeId = interaction.fields.getTextInputValue('typeid')?.trim().toLowerCase();
+  const categoryId = interaction.fields.getTextInputValue('categoryid')?.trim().replace(/[^0-9]/g, '');
+  if (!typeId || !categoryId) {
+    return interaction.reply({ content: 'ID du type et ID de la catégorie requis.', ephemeral: true });
+  }
+  const messageLike = buildMessageLikeFromInteraction(interaction);
+  await ticketAddType(messageLike, [typeId, categoryId]);
+}
 
 function ensureTicketTypes(guildData, guildId) {
   const ticket = guildData.settings?.ticket || {};
@@ -126,13 +385,14 @@ function getTicketTypes(guildData) {
     return ticket.types;
   }
   if (ticket.categoryId) {
+    const t = getTicketLang(guildData);
     return {
       default: {
         categoryId: ticket.categoryId,
         supportRoleId: ticket.supportRoleId,
-        panelEmbed: { ...DEFAULT_PANEL_EMBED },
-        ticketEmbed: { ...DEFAULT_TICKET_EMBED },
-        buttonLabel: 'Ouvrir un ticket',
+        panelEmbed: { ...t.panelEmbed },
+        ticketEmbed: { ...t.ticketEmbed },
+        buttonLabel: t.buttonLabel,
         buttonEmoji: '🎫',
       },
     };
@@ -177,23 +437,25 @@ async function ticketAddType(message, args) {
   if (!guildData.settings.ticket.types) {
     guildData.settings.ticket.types = {};
     if (guildData.settings.ticket.categoryId) {
+      const t = getTicketLang(guildData);
       guildData.settings.ticket.types.default = {
         categoryId: guildData.settings.ticket.categoryId,
         supportRoleId: guildData.settings.ticket.supportRoleId,
-        panelEmbed: { ...DEFAULT_PANEL_EMBED },
-        ticketEmbed: { ...DEFAULT_TICKET_EMBED },
-        buttonLabel: 'Ouvrir un ticket',
+        panelEmbed: { ...t.panelEmbed },
+        ticketEmbed: { ...t.ticketEmbed },
+        buttonLabel: t.buttonLabel,
         buttonEmoji: '🎫',
       };
     }
   }
 
+  const t = getTicketLang(guildData);
   guildData.settings.ticket.types[typeId] = {
     categoryId: category.id,
     supportRoleId: null,
-    panelEmbed: { ...DEFAULT_PANEL_EMBED },
-    ticketEmbed: { ...DEFAULT_TICKET_EMBED },
-    buttonLabel: `Ticket ${typeId}`,
+    panelEmbed: { ...t.panelEmbed },
+    ticketEmbed: { ...t.ticketEmbed },
+    buttonLabel: typeId === 'default' ? t.buttonLabel : `Ticket ${typeId}`,
     buttonEmoji: '🎫',
   };
   saveGuildData(message.guild.id, guildData);
@@ -228,6 +490,33 @@ async function ticketRemoveType(message, args) {
   message.reply({ embeds: [createEmbed('success', { title: 'Type supprimé', description: `Le type \`${typeId}\` a été supprimé.` })] });
 }
 
+async function ticketLang(message, args) {
+  if (!args[0]) {
+    const guildData = getGuildData(message.guild.id);
+    const lang = guildData.settings?.ticket?.lang || 'fr';
+    return message.reply({
+      embeds: [createEmbed('info', {
+        title: 'Langue des tickets',
+        description: `Langue actuelle : **${lang.toUpperCase()}**\n\nUsage: \`,ticket lang fr\` ou \`,ticket lang en\``,
+      })],
+    });
+  }
+
+  const lang = args[0].toLowerCase();
+  if (!['fr', 'en'].includes(lang)) {
+    return message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: 'Langues disponibles : `fr`, `en`' })] });
+  }
+
+  const guildData = getGuildData(message.guild.id);
+  if (!guildData.settings) guildData.settings = {};
+  if (!guildData.settings.ticket) guildData.settings.ticket = {};
+  guildData.settings.ticket.lang = lang;
+  saveGuildData(message.guild.id, guildData);
+
+  const msg = lang === 'fr' ? 'Langue définie sur Français.' : 'Language set to English.';
+  message.reply({ embeds: [createEmbed('success', { title: 'Langue', description: msg })] });
+}
+
 async function ticketEmbed(message) {
   const guildData = getGuildData(message.guild.id);
   ensureTicketTypes(guildData, message.guild.id);
@@ -257,7 +546,7 @@ async function ticketEmbed(message) {
 
   const embed = createEmbed('info', {
     title: 'Configuration des embeds',
-    description: '**Étape 1** : Choisissez le type de ticket à configurer dans le menu ci-dessous.\n\nEnsuite vous pourrez modifier :\n• **Panneau** – L\'embed affiché sur le panneau de tickets\n• **Ticket** – L\'embed affiché dans chaque ticket\n• **Bouton** – Le libellé et l\'emoji du bouton',
+    description: '**Étape 1** : Choisissez le type de ticket à configurer.\n\n**Modifiable :**\n• **Panneau** – Embed du panneau\n• **Ticket** – Embed dans chaque ticket\n• **Bouton** – Libellé et emoji d\'ouverture\n• **Rôle** – Rôle support mentionné\n• **Bouton fermer** – Libellé du bouton de fermeture\n• **Messages** – Message après création + contenu du ticket\n• **Embed fermeture** – Embed affiché à la fermeture',
     footer: { text: 'Variables : {user} {username} {support} {server} {ticketnumber}' },
   });
 
@@ -272,16 +561,17 @@ export function buildEmbedConfigButtons(typeId, guildData) {
     description: `Configurer le type "${id}"`,
   }));
 
+  const t = getTicketLang(guildData);
   const rows = [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`ticket_embed_panel_${typeId}`)
-        .setLabel('Embed du panneau')
+        .setLabel('Panneau')
         .setEmoji('📋')
         .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId(`ticket_embed_ticket_${typeId}`)
-        .setLabel('Embed du ticket')
+        .setLabel('Ticket')
         .setEmoji('🎫')
         .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
@@ -291,8 +581,25 @@ export function buildEmbedConfigButtons(typeId, guildData) {
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(`ticket_embed_role_${typeId}`)
-        .setLabel('Rôle support')
+        .setLabel('Rôle')
         .setEmoji('👮')
+        .setStyle(ButtonStyle.Secondary)
+    ),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`ticket_embed_closebtn_${typeId}`)
+        .setLabel('Bouton fermer')
+        .setEmoji('🔒')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`ticket_embed_messages_${typeId}`)
+        .setLabel('Messages')
+        .setEmoji('💬')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`ticket_embed_closeembed_${typeId}`)
+        .setLabel('Embed fermeture')
+        .setEmoji('📤')
         .setStyle(ButtonStyle.Secondary)
     ),
   ];
@@ -409,7 +716,7 @@ export async function handleTicketEmbedButton(interaction) {
   if (!interaction.memberPermissions?.has('ManageGuild')) {
     return interaction.reply({ content: 'Permission refusée.', ephemeral: true });
   }
-  const match = interaction.customId.match(/^ticket_embed_(panel|ticket|btn|role)_(.+)$/);
+  const match = interaction.customId.match(/^ticket_embed_(panel|ticket|btn|role|closebtn|messages|closeembed)_(.+)$/);
   if (!match) return;
 
   const [, part, typeId] = match;
@@ -421,6 +728,7 @@ export async function handleTicketEmbedButton(interaction) {
   }
 
   const config = types[typeId];
+  const t = getTicketLang(guildData);
   if (part === 'role') {
     const role = config.supportRoleId ? interaction.guild.roles.cache.get(config.supportRoleId) : null;
     const modal = new ModalBuilder()
@@ -438,6 +746,73 @@ export async function handleTicketEmbedButton(interaction) {
       )
     );
     await interaction.showModal(modal);
+  } else if (part === 'closebtn') {
+    const modal = new ModalBuilder()
+      .setCustomId(`ticket_embed_modal_closebtn_${typeId}`)
+      .setTitle('Bouton fermer');
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('label')
+          .setLabel('Libellé du bouton')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Ex: Fermer le ticket')
+          .setValue(config.closeButton ?? t.closeButton)
+          .setMaxLength(80)
+      )
+    );
+    await interaction.showModal(modal);
+  } else if (part === 'messages') {
+    const modal = new ModalBuilder()
+      .setCustomId(`ticket_embed_modal_messages_${typeId}`)
+      .setTitle('Messages');
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('created')
+          .setLabel('Message après création')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Ex: Votre ticket a été créé :')
+          .setValue(config.createdMessage ?? t.ticketCreated)
+          .setMaxLength(200)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('ticketcontent')
+          .setLabel('Contenu du message dans le ticket')
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder('Ex: {user} {support} - Variables: {user} {support}')
+          .setValue(config.ticketMessage ?? '{user} {support}')
+          .setMaxLength(500)
+      )
+    );
+    await interaction.showModal(modal);
+  } else if (part === 'closeembed') {
+    const ce = config.closeEmbed || {};
+    const modal = new ModalBuilder()
+      .setCustomId(`ticket_embed_modal_closeembed_${typeId}`)
+      .setTitle('Embed fermeture');
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('title')
+          .setLabel('Titre')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Ex: Ticket fermé')
+          .setValue(ce.title ?? t.ticketClosed)
+          .setMaxLength(256)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('description')
+          .setLabel('Description')
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder('Ex: Ce ticket a été fermé par...')
+          .setValue(ce.description ?? `${t.closedBy} {user}.\n${t.channelDeletedIn}`)
+          .setMaxLength(1000)
+      )
+    );
+    await interaction.showModal(modal);
   } else {
     const modal = buildEmbedModal(typeId, part, config);
     await interaction.showModal(modal);
@@ -448,7 +823,7 @@ export async function handleTicketEmbedModal(interaction) {
   if (!interaction.memberPermissions?.has('ManageGuild')) {
     return interaction.reply({ content: 'Permission refusée.', ephemeral: true });
   }
-  const match = interaction.customId.match(/^ticket_embed_modal_(panel|ticket|btn|role)_(.+)$/);
+  const match = interaction.customId.match(/^ticket_embed_modal_(panel|ticket|btn|role|closebtn|messages|closeembed)_(.+)$/);
   if (!match) return;
 
   const [, part, typeId] = match;
@@ -487,6 +862,16 @@ export async function handleTicketEmbedModal(interaction) {
     const emoji = interaction.fields.getTextInputValue('emoji') || '';
     types[typeId].buttonLabel = label;
     types[typeId].buttonEmoji = emoji.trim() || '🎫';
+  } else if (part === 'closebtn') {
+    const label = interaction.fields.getTextInputValue('label') || 'Fermer le ticket';
+    types[typeId].closeButton = label;
+  } else if (part === 'messages') {
+    types[typeId].createdMessage = interaction.fields.getTextInputValue('created') || '';
+    types[typeId].ticketMessage = interaction.fields.getTextInputValue('ticketcontent') || '';
+  } else if (part === 'closeembed') {
+    if (!types[typeId].closeEmbed) types[typeId].closeEmbed = {};
+    types[typeId].closeEmbed.title = interaction.fields.getTextInputValue('title') || '';
+    types[typeId].closeEmbed.description = interaction.fields.getTextInputValue('description') || '';
   } else {
     const embedKey = part === 'panel' ? 'panelEmbed' : 'ticketEmbed';
     if (!types[typeId][embedKey]) types[typeId][embedKey] = {};
@@ -588,11 +973,20 @@ async function ticketClose(message) {
     });
   }
 
-  const embed = createEmbed('warning', {
-    title: 'Ticket fermé',
-    description: `Ce ticket a été fermé par ${message.author}.\nLe canal sera supprimé dans 5 secondes.`,
-    timestamp: true,
-  });
+  const t = getTicketLang(guildData);
+  const vars = { user: message.author.toString(), username: message.author.tag };
+  const ce = config.closeEmbed;
+  let embed;
+  if (ce && (ce.title || ce.description)) {
+    embed = buildEmbedFromConfig(ce, vars);
+    embed.setColor(ce.color || 0xED4245);
+  } else {
+    embed = createEmbed('warning', {
+      title: t.ticketClosed,
+      description: `${t.closedBy} ${message.author}.\n${t.channelDeletedIn}`,
+      timestamp: true,
+    });
+  }
 
   await message.reply({ embeds: [embed] });
   setTimeout(() => message.channel.delete().catch(() => {}), 5000);
@@ -669,6 +1063,7 @@ async function ticketConfig(message, args) {
     const guildData = getGuildData(message.guild.id);
     const types = getTicketTypes(guildData);
 
+    const lang = guildData.settings?.ticket?.lang || 'fr';
     const fields = Object.entries(types).map(([id, c]) => {
       const cat = message.guild.channels.cache.get(c.categoryId);
       const role = c.supportRoleId ? message.guild.roles.cache.get(c.supportRoleId) : null;
@@ -678,6 +1073,7 @@ async function ticketConfig(message, args) {
         inline: true,
       };
     });
+    fields.push({ name: 'Langue', value: lang.toUpperCase(), inline: true });
 
     const embed = createEmbed('settings', {
       title: 'Configuration des tickets',
@@ -700,19 +1096,14 @@ export async function handleTicketCreate(interaction) {
   const types = getTicketTypes(guildData);
 
   const config = types[typeId] || types.default || Object.values(types)[0];
+  const t = getTicketLang(guildData);
   if (!config) {
-    return interaction.reply({
-      content: 'Le système de tickets n\'est pas configuré sur ce serveur.',
-      ephemeral: true,
-    });
+    return interaction.reply({ content: t.notConfigured, ephemeral: true });
   }
 
   const category = interaction.guild.channels.cache.get(config.categoryId);
   if (!category) {
-    return interaction.reply({
-      content: 'La catégorie des tickets n\'existe plus. Contactez un administrateur.',
-      ephemeral: true,
-    });
+    return interaction.reply({ content: t.categoryGone, ephemeral: true });
   }
 
   const existingTicket = category.children.cache.find(
@@ -720,7 +1111,7 @@ export async function handleTicketCreate(interaction) {
   );
   if (existingTicket) {
     return interaction.reply({
-      content: `Vous avez déjà un ticket ouvert : ${existingTicket}`,
+      content: `${t.alreadyOpen} ${existingTicket}`,
       ephemeral: true,
     });
   }
@@ -736,7 +1127,7 @@ export async function handleTicketCreate(interaction) {
     ],
   });
 
-  const supportMention = config.supportRoleId ? `<@&${config.supportRoleId}>` : 'Le staff';
+  const supportMention = config.supportRoleId ? `<@&${config.supportRoleId}>` : t.supportDefault;
   const vars = {
     user: interaction.user.toString(),
     username: interaction.user.tag,
@@ -748,22 +1139,28 @@ export async function handleTicketCreate(interaction) {
   const ticketEmbedConfig = config.ticketEmbed || DEFAULT_TICKET_EMBED;
   const embed = buildEmbedFromConfig(ticketEmbedConfig, vars);
 
+  const closeBtnLabel = (config.closeButton?.trim() || t.closeButton);
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('ticket_close_btn')
-      .setLabel('Fermer le ticket')
+      .setLabel(closeBtnLabel)
       .setEmoji('🔒')
       .setStyle(ButtonStyle.Danger)
   );
 
+  const ticketContent = (config.ticketMessage && config.ticketMessage.trim())
+    ? formatEmbedText(config.ticketMessage, vars)
+    : `${interaction.user} ${supportMention}`;
+
   await ticketChannel.send({
-    content: `${interaction.user} ${supportMention}`,
+    content: ticketContent,
     embeds: [embed],
     components: [row],
   });
 
+  const createdMsg = config.createdMessage?.trim() || t.ticketCreated;
   await interaction.reply({
-    content: `Votre ticket a été créé : ${ticketChannel}`,
+    content: `${createdMsg} ${ticketChannel}`,
     ephemeral: true,
   });
 }
@@ -775,11 +1172,9 @@ export async function handleTicketClose(interaction) {
   const guildData = getGuildData(interaction.guild.id);
   const ticketInfo = getCategoryForChannel(guildData, interaction.channel.parentId);
 
+  const t = getTicketLang(guildData);
   if (!ticketInfo) {
-    return interaction.reply({
-      content: 'Ce bouton ne peut être utilisé que dans un ticket.',
-      ephemeral: true,
-    });
+    return interaction.reply({ content: t.closeBtnOnlyInTicket, ephemeral: true });
   }
 
   const { config } = ticketInfo;
@@ -787,17 +1182,22 @@ export async function handleTicketClose(interaction) {
     (config.supportRoleId && interaction.member.roles.cache.has(config.supportRoleId));
 
   if (!isStaff) {
-    return interaction.reply({
-      content: 'Seuls les membres du staff peuvent fermer les tickets.',
-      ephemeral: true,
-    });
+    return interaction.reply({ content: t.onlyStaffClose, ephemeral: true });
   }
 
-  const embed = createEmbed('warning', {
-    title: 'Ticket fermé',
-    description: `Ce ticket a été fermé par ${interaction.user}.\nLe canal sera supprimé dans 5 secondes.`,
-    timestamp: true,
-  });
+  const vars = { user: interaction.user.toString(), username: interaction.user.tag };
+  const ce = config.closeEmbed;
+  let embed;
+  if (ce && (ce.title || ce.description)) {
+    embed = buildEmbedFromConfig(ce, vars);
+    embed.setColor(ce.color || 0xED4245);
+  } else {
+    embed = createEmbed('warning', {
+      title: t.ticketClosed,
+      description: `${t.closedBy} ${interaction.user}.\n${t.channelDeletedIn}`,
+      timestamp: true,
+    });
+  }
 
   await interaction.reply({ embeds: [embed] });
   setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);

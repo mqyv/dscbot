@@ -60,20 +60,21 @@ export default {
           fields.push({ name: '**Permissions**', value: permissions, inline: true });
         }
         fields.push({ name: '\u200b', value: codeBlock, inline: false });
-        // 0x2F3136 = fond Discord dark theme, barre "invisible" à gauche
+        // 0x26262E = fond dark charcoal (DA vile)
         embed = createEmbed('info', {
           title: `Command: ${commandName}`,
           description: description,
           fields,
           footer: { text: footerParts.join(' • ') },
           timestamp: true,
-          color: 0x2F3136,
+          color: 0x26262E,
         });
       } else {
         // Format classique
         embed = createEmbed('info', {
           title: `Aide: ${prefix}${commandName}`,
           description: description,
+          color: 0x26262E,
         });
         if (usage.length > 0) {
           embed.addFields({ name: 'Utilisation', value: usage.join('\n'), inline: false });
@@ -129,6 +130,7 @@ export default {
       description: `Utilisez \`${prefix}help <commande>\` pour plus d'informations.\nExemple: \`${prefix}help ${isDM ? 'remind' : 'ban'}\``,
       fields: fields,
       footer: { text: isDM ? 'Utilisable en messages privés' : `${commands.length} commandes disponibles` },
+      color: 0x26262E,
     });
 
     message.reply({ embeds: [embed] });

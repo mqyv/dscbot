@@ -134,12 +134,35 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 
   // Gestion du select menu (choix type ticket)
-  if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_embed_type') {
+  if (interaction.isStringSelectMenu()) {
+    const handlers = {
+      ticket_embed_type: 'handleTicketEmbedSelect',
+      ticket_menu_select: 'handleTicketMenuSelect',
+      ticket_lang_select: 'handleTicketLangSelect',
+      ticket_panel_type_select: 'handleTicketPanelTypeSelect',
+      ticket_removetype_select: 'handleTicketRemovetypeSelect',
+    };
+    const handlerName = handlers[interaction.customId];
+    if (handlerName) {
+      try {
+        const mod = await import('./commands/ticket.js');
+        await mod[handlerName](interaction);
+      } catch (error) {
+        console.error(`Erreur select ticket (${interaction.customId}):`, error);
+        const err = { content: 'Une erreur est survenue.', ephemeral: true };
+        (interaction.replied || interaction.deferred ? interaction.followUp(err) : interaction.reply(err)).catch(() => {});
+      }
+      return;
+    }
+  }
+
+  // Modal ticket addtype
+  if (interaction.isModalSubmit() && interaction.customId === 'ticket_addtype_modal') {
     try {
-      const { handleTicketEmbedSelect } = await import('./commands/ticket.js');
-      await handleTicketEmbedSelect(interaction);
+      const { handleTicketAddtypeModal } = await import('./commands/ticket.js');
+      await handleTicketAddtypeModal(interaction);
     } catch (error) {
-      console.error('Erreur select ticket embed:', error);
+      console.error('Erreur modal ticket addtype:', error);
       const err = { content: 'Une erreur est survenue.', ephemeral: true };
       (interaction.replied || interaction.deferred ? interaction.followUp(err) : interaction.reply(err)).catch(() => {});
     }

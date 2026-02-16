@@ -19,19 +19,20 @@ export function createEmbed(type = 'default', options = {}) {
     author,
   } = options;
 
-  // Couleurs selon le type - style moderne avec couleurs vives
+  // Couleurs selon le type - DA dark (style vile)
   const colors = {
-    default: 0x5865F2,  // Bleu Discord
-    success: 0x57F287,  // Vert Discord
-    error: 0xED4245,    // Rouge Discord
-    warning: 0xFEE75C,   // Jaune Discord
+    default: 0x5865F2,   // Bleu Discord
+    success: 0x57F287,   // Vert Discord
+    error: 0xED4245,     // Rouge Discord (barre gauche)
+    warning: 0xFEE75C,   // Orange/jaune pour avertissements (barre gauche)
     info: 0x5865F2,      // Bleu Discord
-    prefix: 0x5865F2,   // Bleu pour prefix
-    settings: 0x5865F2, // Bleu pour settings
-    boosterrole: 0xFF73FA, // Rose pour boosterrole
-    moderation: 0xED4245,  // Rouge pour modération
-    fun: 0xFEE75C,      // Jaune pour fun
-    utility: 0x57F287,   // Vert pour utilitaires
+    help: 0x26262E,      // Dark charcoal (panneau help)
+    prefix: 0x5865F2,
+    settings: 0x5865F2,
+    boosterrole: 0xFF73FA,
+    moderation: 0xED4245,
+    fun: 0xFEE75C,
+    utility: 0x57F287,
   };
 
   const embed = new EmbedBuilder()
