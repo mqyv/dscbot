@@ -258,16 +258,16 @@ export const commandHelp = {
   },
 
   emoji: {
-    description: 'Copier emojis/stickers d\'un serveur ou lister les siens',
+    description: 'Copier les emojis/stickers spécifiés ou lister les siens',
     usage: [
       '`emoji list` - Lister emojis et stickers du serveur',
-      '`emoji <id_serveur>` - Copier tous les emojis et stickers d\'un serveur',
-      '`emoji <emoji1> [emoji2] ...` - Copier les emojis spécifiés',
+      '`emoji <emoji1> [emoji2] ...` - Copier les emojis collés',
+      '`emoji` + autocollants - Copier les stickers du message',
     ],
     examples: [
       '`emoji list`',
-      '`emoji 123456789012345678`',
       '`emoji :custom: :autre:`',
+      'Ajoutez des autocollants au message avec `emoji`',
     ],
     permissions: 'Gérer les emojis et stickers (sauf list)',
   },
