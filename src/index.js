@@ -18,7 +18,7 @@ const OWNER_IDS = [
 // Toutes les commandes accessibles au propriétaire OU aux whitelistés (whitelist par serveur)
 const WL_COMMANDS = [
   'customize', 'settings', 'prefix', 'filter', 'welcome', 'goodbye',
-  'logs', 'boosterrole', 'invite', 'steal', 'extractemojis', 'emoji', 'wl',
+  'logs', 'boosterrole', 'invite', 'extractemojis', 'emoji', 'wl',
   'ban', 'kick', 'timeout', 'warn', 'unban', 'clear', 'say',
   'renew', 'roleall', 'hide', 'unhide', 'lock', 'unlock', 'hideall',
   'alias', 'sticky', 'autoresponder', 'imageonly', 'pin', 'unpin', 'webhook', 'ignore',

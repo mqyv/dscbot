@@ -60,21 +60,18 @@ export default {
           fields.push({ name: '**Permissions**', value: permissions, inline: true });
         }
         fields.push({ name: '\u200b', value: codeBlock, inline: false });
-        // 0x26262E = fond dark charcoal (DA vile)
         embed = createEmbed('info', {
           title: `Command: ${commandName}`,
           description: description,
           fields,
           footer: { text: footerParts.join(' • ') },
           timestamp: true,
-          color: 0x26262E,
         });
       } else {
         // Format classique
         embed = createEmbed('info', {
           title: `Aide: ${prefix}${commandName}`,
           description: description,
-          color: 0x26262E,
         });
         if (usage.length > 0) {
           embed.addFields({ name: 'Utilisation', value: usage.join('\n'), inline: false });
@@ -104,7 +101,7 @@ export default {
       'Filtres': ['filter'],
       'Informations': ['help', 'info', 'userinfo', 'profile', 'serverinfo', 'botinfo', 'channelinfo', 'roleinfo', 'invite', 'snipe', 'firstmessage', 'membercount'],
       'Modération': ['kick', 'ban', 'unban', 'timeout', 'warn', 'clear', 'roleall', 'hide', 'unhide', 'lock', 'unlock', 'hideall', 'pin', 'unpin', 'nuke', 'slowmode', 'voicemove'],
-      'Utilitaires': ['avatar', 'emoji', 'emojis', 'steal', 'extractemojis', 'ping', 'say', 'poll', 'uptime', 'calc', 'random', 'dice', 'urban', 'embed', 'renew', 'webhook', 'afk', 'backup', 'remind', 'notes'],
+      'Utilitaires': ['avatar', 'emoji', 'extractemojis', 'ping', 'say', 'poll', 'uptime', 'calc', 'random', 'dice', 'urban', 'embed', 'renew', 'webhook', 'afk', 'backup', 'remind', 'notes'],
       'Logs': ['logs'],
       'Fun': ['8ball', 'coinflip', 'quote', 'suggest'],
     };
@@ -130,7 +127,6 @@ export default {
       description: `Utilisez \`${prefix}help <commande>\` pour plus d'informations.\nExemple: \`${prefix}help ${isDM ? 'remind' : 'ban'}\``,
       fields: fields,
       footer: { text: isDM ? 'Utilisable en messages privés' : `${commands.length} commandes disponibles` },
-      color: 0x26262E,
     });
 
     message.reply({ embeds: [embed] });

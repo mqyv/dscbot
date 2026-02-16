@@ -19,14 +19,13 @@ export function createEmbed(type = 'default', options = {}) {
     author,
   } = options;
 
-  // Couleurs selon le type - DA dark (style vile)
+  // Couleurs selon le type
   const colors = {
     default: 0x5865F2,   // Bleu Discord
     success: 0x57F287,   // Vert Discord
-    error: 0xED4245,     // Rouge Discord (barre gauche)
-    warning: 0xFEE75C,   // Orange/jaune pour avertissements (barre gauche)
+    error: 0xED4245,     // Rouge Discord
+    warning: 0xFEE75C,   // Jaune Discord
     info: 0x5865F2,      // Bleu Discord
-    help: 0x26262E,      // Dark charcoal (panneau help)
     prefix: 0x5865F2,
     settings: 0x5865F2,
     boosterrole: 0xFF73FA,

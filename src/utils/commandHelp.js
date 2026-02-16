@@ -257,17 +257,19 @@ export const commandHelp = {
     permissions: 'Aucune',
   },
 
-  steal: {
-    description: 'Cloner des emojis depuis d\'autres serveurs (un ou plusieurs)',
+  emoji: {
+    description: 'Copier emojis/stickers d\'un serveur ou lister les siens',
     usage: [
-      '`steal <emoji>` - Cloner un emoji',
-      '`steal <emoji1> <emoji2> <emoji3> ...` - Cloner plusieurs emojis en même temps',
+      '`emoji list` - Lister emojis et stickers du serveur',
+      '`emoji <id_serveur>` - Copier tous les emojis et stickers d\'un serveur',
+      '`emoji <emoji1> [emoji2] ...` - Copier les emojis spécifiés',
     ],
     examples: [
-      '`steal :emoji:` - Cloner un emoji',
-      '`steal :emoji1: :emoji2: :emoji3:` - Cloner 3 emojis',
+      '`emoji list`',
+      '`emoji 123456789012345678`',
+      '`emoji :custom: :autre:`',
     ],
-    permissions: 'Gérer les emojis et stickers',
+    permissions: 'Gérer les emojis et stickers (sauf list)',
   },
 
   // Autres commandes (à compléter au fur et à mesure)
