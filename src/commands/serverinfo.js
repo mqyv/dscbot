@@ -1,4 +1,5 @@
 import { createEmbed, formatBleedDate, getTimeAgo } from '../utils/embeds.js';
+import { E } from '../utils/emojis.js';
 
 export default {
   data: {
@@ -10,7 +11,7 @@ export default {
     const owner = await guild.fetchOwner();
 
     const embed = createEmbed('default', {
-      title: `📊 ${guild.name}`,
+      title: `${E.stats} ${guild.name}`,
       description: `Informations sur le serveur ${guild.name}`,
       thumbnail: guild.iconURL({ dynamic: true, size: 256 }),
       fields: [
@@ -40,7 +41,7 @@ export default {
           inline: true,
         },
         {
-          name: '📝 Canaux',
+          name: `${E.notes} Canaux`,
           value: [
             `Textuels: ${guild.channels.cache.filter(c => c.isTextBased()).size}`,
             `Vocaux: ${guild.channels.cache.filter(c => c.isVoiceBased()).size}`,
@@ -48,7 +49,7 @@ export default {
           inline: true,
         },
         {
-          name: '🔒 Niveau de vérification',
+          name: `${E.lock} Niveau de vérification`,
           value: getVerificationLevel(guild.verificationLevel),
           inline: true,
         },

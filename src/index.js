@@ -4,7 +4,8 @@ import { readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createEmbed } from './utils/embeds.js';
-import { getPrefix, isWhitelisted, getGuildData, saveGuildData, addPreviousName, getUserData, saveUserData, isVIP } from './utils/database.js';
+import { E } from './utils/emojis.js';
+import { getPrefix, isWhitelisted, getGuildData, saveGuildData, addPreviousName, getUserData, saveUserData } from './utils/database.js';
 import { isOwner, isMainOwner } from './utils/owners.js';
 
 config();
@@ -12,11 +13,11 @@ config();
 // Toutes les commandes accessibles au propriétaire OU aux whitelistés (whitelist par serveur)
 const WL_COMMANDS = [
   'customize', 'settings', 'prefix', 'filter', 'welcome', 'goodbye',
-  'logs', 'boosterrole', 'invite', 'extractemojis', 'emoji', 'wl',
+  'logs', 'boosterrole', 'invite', 'emoji', 'wl',
   'ban', 'kick', 'timeout', 'warn', 'unban', 'clear', 'say',
-  'renew', 'roleall', 'hide', 'unhide', 'lock', 'unlock', 'hideall',
+  'hide', 'unhide', 'lock', 'unlock', 'hideall',
   'alias', 'sticky', 'autoresponder', 'imageonly', 'pin', 'unpin', 'webhook', 'ignore',
-  'autorole', 'ticket', 'addrole', 'delrole'
+  'autorole', 'addrole', 'delrole', 'backup', 'giveaway', 'extractemojis', 'ticket', 'renew', 'roleall', 'nuke'
 ];
 
 // Commandes utilisables en MP (bot perso)
@@ -225,15 +226,6 @@ client.on(Events.InteractionCreate, async interaction => {
         ephemeral: true,
       });
     }
-  }
-
-  // Vérifier VIP pour les commandes premium
-  const { VIP_COMMANDS } = await import('./commands/vip.js');
-  if (VIP_COMMANDS.includes(commandName) && !isOwner(interaction.user.id) && !isVIP(interaction.user.id)) {
-    return interaction.reply({
-      content: 'Cette commande nécessite le statut **VIP** (2,50€ lifetime).',
-      ephemeral: true,
-    });
   }
 
   try {
@@ -526,7 +518,7 @@ client.on(Events.MessageCreate, async message => {
       if (containsFilteredWord) {
         await message.delete().catch(() => {});
         const warnEmbed = createEmbed('warning', {
-          title: '⚠️ Message supprimé',
+          title: `${E.warning} Message supprimé`,
           description: `${message.author}, votre message contient un mot filtré.`,
         });
         const warningMsg = await message.channel.send({ embeds: [warnEmbed] });
@@ -595,16 +587,6 @@ client.on(Events.MessageCreate, async message => {
       });
       return message.reply({ embeds: [errorEmbed] });
     }
-  }
-
-  // Vérifier VIP pour les commandes premium (backup, giveaway) - propriétaire exempté
-  const { VIP_COMMANDS } = await import('./commands/vip.js');
-  if (VIP_COMMANDS.includes(commandName) && !isOwner(message.author.id) && !isVIP(message.author.id)) {
-    const errorEmbed = createEmbed('error', {
-      title: 'Commande VIP',
-      description: 'Cette commande nécessite le statut **VIP** (2,50€ lifetime).\nContactez le propriétaire du bot pour plus d\'informations.',
-    });
-    return message.reply({ embeds: [errorEmbed] });
   }
 
   try {

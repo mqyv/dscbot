@@ -1,17 +1,18 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType, EmbedBuilder, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { createEmbed } from '../utils/embeds.js';
+import { E } from '../utils/emojis.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
 
 const TEXTS = {
   fr: {
     panelEmbed: {
-      title: '🎫 Système de tickets',
+      title: `${E.ticket} Système de tickets`,
       description: 'Cliquez sur un bouton ci-dessous pour ouvrir un ticket.\n\nUn membre de l\'équipe vous répondra dès que possible.',
       footer: 'Ne créez un ticket que si nécessaire',
       color: 0x5865F2,
     },
     ticketEmbed: {
-      title: '🎫 Ticket #{ticketnumber}',
+      title: `${E.ticket} Ticket #{ticketnumber}`,
       description: 'Bienvenue {user} !\n\nDécrivez votre demande et {support} vous répondra dès que possible.\n\nUtilisez `,ticket close` pour fermer ce ticket (staff uniquement).',
       footer: 'Ouvert par {username}',
       color: 0x5865F2,
@@ -31,13 +32,13 @@ const TEXTS = {
   },
   en: {
     panelEmbed: {
-      title: '🎫 Ticket System',
+      title: `${E.ticket} Ticket System`,
       description: 'Click a button below to open a ticket.\n\nA staff member will respond as soon as possible.',
       footer: 'Only create a ticket if necessary',
       color: 0x5865F2,
     },
     ticketEmbed: {
-      title: '🎫 Ticket #{ticketnumber}',
+      title: `${E.ticket} Ticket #{ticketnumber}`,
       description: 'Welcome {user}!\n\nDescribe your request and {support} will respond as soon as possible.\n\nUse `,ticket close` to close this ticket (staff only).',
       footer: 'Opened by {username}',
       color: 0x5865F2,
@@ -142,7 +143,7 @@ async function ticketMenu(message) {
   const hasTypes = Object.keys(types).length > 0;
 
   const embed = createEmbed('settings', {
-    title: '🎫 Système de tickets',
+    title: `${E.ticket} Système de tickets`,
     description: 'Choisissez une action ci-dessous pour configurer ou gérer les tickets.',
     fields: [
       { name: 'Configuration', value: 'Voir la config actuelle (types, rôles, langue)', inline: true },
@@ -546,7 +547,7 @@ async function ticketEmbed(message) {
 
   const embed = createEmbed('info', {
     title: 'Configuration des embeds',
-    description: '**Étape 1** : Choisissez le type de ticket à configurer.\n\n**Modifiable :**\n• **Panneau** – Embed du panneau\n• **Ticket** – Embed dans chaque ticket\n• **Bouton** – Libellé et emoji d\'ouverture\n• **Rôle** – Rôle support mentionné\n• **Bouton fermer** – Libellé du bouton de fermeture\n• **Messages** – Message après création + contenu du ticket\n• **Embed fermeture** – Embed affiché à la fermeture',
+    description: '**Étape 1** : Choisissez le type de ticket à configurer.\n\n**Modifiable :**\n• **Panneau** – Embed du panneau\n• **Ticket** – Embed dans chaque ticket\n• **Bouton** – Libellé et emoji d\'ouverture\n• **Rôle** – Rôle support mentionné\n• **Texte support** – Texte à la place de "Le staff" (ex: L\'équipe, Le support)\n• **Bouton fermer** – Libellé du bouton de fermeture\n• **Messages** – Message après création + contenu du ticket\n• **Embed fermeture** – Embed affiché à la fermeture',
     footer: { text: 'Variables : {user} {username} {support} {server} {ticketnumber}' },
   });
 
@@ -583,6 +584,11 @@ export function buildEmbedConfigButtons(typeId, guildData) {
         .setCustomId(`ticket_embed_role_${typeId}`)
         .setLabel('Rôle')
         .setEmoji('👮')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`ticket_embed_supporttext_${typeId}`)
+        .setLabel('Texte support')
+        .setEmoji('✏️')
         .setStyle(ButtonStyle.Secondary)
     ),
     new ActionRowBuilder().addComponents(
@@ -698,14 +704,18 @@ export async function handleTicketEmbedSelect(interaction) {
     return interaction.update({ content: 'Type introuvable.', embeds: [], components: [] });
   }
 
+  const config = types[typeId];
+  const t = getTicketLang(guildData);
+  const supportTextPreview = config.supportText || (config.supportRoleId ? '(rôle)' : t.supportDefault);
   const embed = createEmbed('info', {
     title: `Configuration : ${typeId}`,
     description: 'Choisissez ce que vous voulez modifier :',
     fields: [
       { name: '📋 Embed du panneau', value: 'L\'embed affiché sur le panneau', inline: true },
-      { name: '🎫 Embed du ticket', value: 'L\'embed dans chaque ticket', inline: true },
+      { name: `${E.ticket} Embed du ticket`, value: 'L\'embed dans chaque ticket', inline: true },
       { name: '🔘 Bouton', value: 'Libellé et emoji', inline: true },
       { name: '👮 Rôle support', value: 'Rôle mentionné à l\'ouverture', inline: true },
+      { name: '✏️ Texte support', value: `Texte remplaçant "Le staff" : ${supportTextPreview}`, inline: true },
     ],
   });
 
@@ -716,7 +726,7 @@ export async function handleTicketEmbedButton(interaction) {
   if (!interaction.memberPermissions?.has('ManageGuild')) {
     return interaction.reply({ content: 'Permission refusée.', ephemeral: true });
   }
-  const match = interaction.customId.match(/^ticket_embed_(panel|ticket|btn|role|closebtn|messages|closeembed)_(.+)$/);
+  const match = interaction.customId.match(/^ticket_embed_(panel|ticket|btn|role|supporttext|closebtn|messages|closeembed)_(.+)$/);
   if (!match) return;
 
   const [, part, typeId] = match;
@@ -742,6 +752,22 @@ export async function handleTicketEmbedButton(interaction) {
           .setStyle(TextInputStyle.Short)
           .setPlaceholder('Ex: 123456789 ou @Support')
           .setValue(role ? role.id : '')
+          .setRequired(false)
+      )
+    );
+    await interaction.showModal(modal);
+  } else if (part === 'supporttext') {
+    const modal = new ModalBuilder()
+      .setCustomId(`ticket_embed_modal_supporttext_${typeId}`)
+      .setTitle('Texte support');
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('text')
+          .setLabel('Texte affiché à la place de "Le staff"')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Ex: L\'équipe, Le support, Notre team...')
+          .setValue(config.supportText || '')
           .setRequired(false)
       )
     );
@@ -823,7 +849,7 @@ export async function handleTicketEmbedModal(interaction) {
   if (!interaction.memberPermissions?.has('ManageGuild')) {
     return interaction.reply({ content: 'Permission refusée.', ephemeral: true });
   }
-  const match = interaction.customId.match(/^ticket_embed_modal_(panel|ticket|btn|role|closebtn|messages|closeembed)_(.+)$/);
+  const match = interaction.customId.match(/^ticket_embed_modal_(panel|ticket|btn|role|supporttext|closebtn|messages|closeembed)_(.+)$/);
   if (!match) return;
 
   const [, part, typeId] = match;
@@ -832,6 +858,19 @@ export async function handleTicketEmbedModal(interaction) {
   const types = guildData.settings?.ticket?.types;
   if (!types || !types[typeId]) {
     return interaction.reply({ content: 'Type introuvable.', ephemeral: true });
+  }
+
+  if (part === 'supporttext') {
+    const text = interaction.fields.getTextInputValue('text')?.trim() || '';
+    types[typeId].supportText = text || undefined;
+    saveGuildData(interaction.guild.id, guildData);
+    return interaction.reply({
+      embeds: [createEmbed('success', {
+        title: 'Texte support configuré',
+        description: text ? `Le texte "${text}" remplacera "Le staff" dans les tickets.` : 'Le texte par défaut "Le staff" sera utilisé.',
+      })],
+      ephemeral: true,
+    });
   }
 
   if (part === 'role') {
@@ -1064,12 +1103,14 @@ async function ticketConfig(message, args) {
     const types = getTicketTypes(guildData);
 
     const lang = guildData.settings?.ticket?.lang || 'fr';
+    const t = getTicketLang(guildData);
     const fields = Object.entries(types).map(([id, c]) => {
       const cat = message.guild.channels.cache.get(c.categoryId);
       const role = c.supportRoleId ? message.guild.roles.cache.get(c.supportRoleId) : null;
+      const supportDisplay = role ? role.toString() : (c.supportText || t.supportDefault);
       return {
         name: `Type: ${id}`,
-        value: `Catégorie: ${cat || '?'}\nSupport: ${role || 'Non configuré'}`,
+        value: `Catégorie: ${cat || '?'}\nSupport: ${supportDisplay}`,
         inline: true,
       };
     });
@@ -1127,7 +1168,9 @@ export async function handleTicketCreate(interaction) {
     ],
   });
 
-  const supportMention = config.supportRoleId ? `<@&${config.supportRoleId}>` : t.supportDefault;
+  const supportMention = config.supportRoleId
+    ? `<@&${config.supportRoleId}>`
+    : (config.supportText?.trim() || t.supportDefault);
   const vars = {
     user: interaction.user.toString(),
     username: interaction.user.tag,

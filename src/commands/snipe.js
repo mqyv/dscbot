@@ -1,4 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
+import { E } from '../utils/emojis.js';
 import { getSnipe } from '../utils/snipes.js';
 
 export default {
@@ -27,7 +28,7 @@ export default {
           inline: true,
         },
         {
-          name: '⏰ Supprimé',
+          name: `${E.reminder} Supprimé`,
           value: `<t:${Math.floor(snipe.createdAt.getTime() / 1000)}:R>`,
           inline: true,
         },

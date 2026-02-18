@@ -1,4 +1,5 @@
 import { createEmbed, formatBleedDate, getTimeAgo } from '../utils/embeds.js';
+import { E } from '../utils/emojis.js';
 
 export default {
   data: {
@@ -32,7 +33,7 @@ export default {
           inline: false,
         },
         {
-          name: '📝 Type',
+          name: `${E.notes} Type`,
           value: getChannelType(channel.type),
           inline: true,
         },
@@ -42,7 +43,7 @@ export default {
           inline: true,
         },
         {
-          name: '📊 Position',
+          name: `${E.stats} Position`,
           value: `${channel.position}`,
           inline: true,
         },

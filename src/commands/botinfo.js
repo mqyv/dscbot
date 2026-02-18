@@ -1,4 +1,5 @@
 import { createEmbed, formatBleedDate, getTimeAgo } from '../utils/embeds.js';
+import { E } from '../utils/emojis.js';
 import { version } from 'discord.js';
 import { getGuildData } from '../utils/database.js';
 
@@ -30,7 +31,7 @@ export default {
           inline: true,
         },
         {
-          name: '📝 Surnom',
+          name: `${E.notes} Surnom`,
           value: member?.nickname || 'Aucun',
           inline: true,
         },
@@ -45,7 +46,7 @@ export default {
           inline: true,
         },
         {
-          name: '📊 Statistiques',
+          name: `${E.stats} Statistiques`,
           value: [
             `Serveurs: ${client.guilds.cache.size}`,
             `Utilisateurs: ${client.users.cache.size}`,

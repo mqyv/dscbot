@@ -1,4 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
+import { E } from '../utils/emojis.js';
 
 // Parse "2d6", "1d20", "4d8+3"
 function parseDice(expr) {
@@ -50,7 +51,7 @@ export default {
       : `**${expr}** → ${count} dés, total = **${total}**`;
 
     const embed = createEmbed('default', {
-      title: '🎲 Lancer de dés',
+      title: `${E.dice} Lancer de dés`,
       description: desc,
     });
 

@@ -696,8 +696,22 @@ export const commandHelp = {
     permissions: 'Gérer le serveur',
   },
 
+  owner: {
+    description: 'Gérer les owners du bot (propriétaire principal uniquement)',
+    usage: [
+      '`owner add <@user|id>` - Ajouter un owner',
+      '`owner remove <@user|id>` - Retirer un owner',
+      '`owner list` - Liste des owners',
+    ],
+    examples: [
+      '`owner add @User`',
+      '`owner list`',
+    ],
+    permissions: 'Propriétaire principal uniquement',
+  },
+
   vip: {
-    description: 'Gérer les abonnés VIP (propriétaire uniquement)',
+    description: 'Gérer les abonnés VIP (owners uniquement)',
     usage: [
       '`vip add <@user|id>` - Ajouter un utilisateur VIP',
       '`vip remove <@user|id>` - Retirer le statut VIP',

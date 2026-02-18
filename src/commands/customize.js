@@ -1,4 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
+import { E } from '../utils/emojis.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
 import { isMainOwner } from '../utils/owners.js';
 
@@ -182,7 +183,7 @@ async function customizeSetAll(message, args) {
       }
       await message.client.user.setAvatar(params.avatar);
       guildData.settings.botAvatar = params.avatar;
-      changes.push('✅ Avatar (PP)');
+      changes.push(`${E.success} Avatar (PP)`);
     }
 
     if (params.banner) {
@@ -193,7 +194,7 @@ async function customizeSetAll(message, args) {
       }
       await message.client.user.setBanner(params.banner).catch(() => {});
       guildData.settings.botBanner = params.banner;
-      changes.push('✅ Bannière');
+      changes.push(`${E.success} Bannière`);
     }
 
     if (params.activity) {
@@ -204,19 +205,19 @@ async function customizeSetAll(message, args) {
       if (!globalData.settings) globalData.settings = {};
       globalData.settings.botActivity = params.activity;
       saveGuildData('global', globalData);
-      changes.push('✅ Activité');
+      changes.push(`${E.success} Activité`);
     }
 
     if (params.bio) {
       if (params.bio.length > 190) throw new Error('Bio max 190 caractères');
       guildData.settings.botBio = params.bio;
-      changes.push('✅ Bio');
+      changes.push(`${E.success} Bio`);
     }
 
     if (params.username) {
       if (params.username.length < 2 || params.username.length > 32) throw new Error('Username: 2-32 caractères');
       await message.client.user.setUsername(params.username);
-      changes.push('✅ Nom d\'utilisateur');
+      changes.push(`${E.success} Nom d'utilisateur`);
     }
 
     if (params.nickname && message.guild) {
@@ -224,7 +225,7 @@ async function customizeSetAll(message, args) {
       const member = await message.guild.members.fetch(message.client.user.id);
       await member.setNickname(params.nickname);
       guildData.settings.botNickname = params.nickname;
-      changes.push('✅ Surnom');
+      changes.push(`${E.success} Surnom`);
     }
 
     if (message.guild) {
@@ -410,7 +411,7 @@ async function customizeNickname(message, args) {
 async function customizeUsername(message, args) {
   if (!message.member.permissions.has('Administrator')) {
     const errorEmbed = createEmbed('error', {
-      title: '❌ Permission refusée',
+      title: `${E.error} Permission refusée`,
       description: 'Vous devez être administrateur pour modifier le nom d\'utilisateur du bot.',
     });
     return message.reply({ embeds: [errorEmbed] });
@@ -456,7 +457,7 @@ async function customizeActivity(message, args) {
   const inGuild = !!message.guild;
   if (inGuild && message.member && !message.member.permissions.has('ManageGuild')) {
     const errorEmbed = createEmbed('error', {
-      title: '❌ Permission refusée',
+      title: `${E.error} Permission refusée`,
       description: 'Vous devez avoir la permission "Gérer le serveur".',
     });
     return message.reply({ embeds: [errorEmbed] });
@@ -561,7 +562,7 @@ async function customizeView(message) {
         inline: true,
       },
       {
-        name: '📝 Surnom',
+        name: `${E.notes} Surnom`,
         value: member?.nickname || 'Aucun',
         inline: true,
       },

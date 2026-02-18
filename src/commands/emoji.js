@@ -1,4 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
+import { E } from '../utils/emojis.js';
 
 const EMOJI_REGEX = /<a?:(\w+):(\d+)>/g;
 
@@ -218,7 +219,7 @@ async function emojiCopyFromInput(message, args) {
   }
 
   const loadingMsg = await message.reply({
-    embeds: [createEmbed('info', { title: '⏳ Copie...', description: `${total} élément(s) en cours...` })],
+    embeds: [createEmbed('info', { title: `${E.loading} Copie...`, description: `${total} élément(s) en cours...` })],
   });
 
   const emojiSuccess = [];
@@ -282,19 +283,19 @@ async function emojiCopyFromInput(message, args) {
   const fields = [];
   if (emojiSuccess.length > 0) {
     const list = emojiSuccess.slice(0, 8).map(e => `${e} \`${e.name}\``).join('\n');
-    fields.push({ name: `✅ Emojis (${emojiSuccess.length})`, value: list + (emojiSuccess.length > 8 ? `\n... +${emojiSuccess.length - 8}` : ''), inline: false });
+    fields.push({ name: `${E.success} Emojis (${emojiSuccess.length})`, value: list + (emojiSuccess.length > 8 ? `\n... +${emojiSuccess.length - 8}` : ''), inline: false });
   }
   if (stickerSuccess.length > 0) {
     const list = stickerSuccess.slice(0, 8).map(s => `\`${s.name}\``).join(', ');
-    fields.push({ name: `✅ Stickers (${stickerSuccess.length})`, value: list + (stickerSuccess.length > 8 ? ` ... +${stickerSuccess.length - 8}` : ''), inline: false });
+    fields.push({ name: `${E.success} Stickers (${stickerSuccess.length})`, value: list + (stickerSuccess.length > 8 ? ` ... +${stickerSuccess.length - 8}` : ''), inline: false });
   }
   if (emojiSkipped.length > 0 || stickerSkipped.length > 0) {
     const skipped = [...emojiSkipped, ...stickerSkipped];
-    fields.push({ name: `⏭️ Ignorés (${skipped.length})`, value: skipped.slice(0, 5).map(s => `\`${s}\``).join(', ') + (skipped.length > 5 ? '...' : '') + '\n*Déjà existants*', inline: false });
+    fields.push({ name: `${E.skipped} Ignorés (${skipped.length})`, value: skipped.slice(0, 5).map(s => `\`${s}\``).join(', ') + (skipped.length > 5 ? '...' : '') + '\n*Déjà existants*', inline: false });
   }
   if (emojiFailed.length > 0 || stickerFailed.length > 0) {
     const failed = [...emojiFailed, ...stickerFailed];
-    fields.push({ name: `❌ Échecs (${failed.length})`, value: failed.slice(0, 5).map(f => `\`${f.name}\`: ${f.reason}`).join('\n'), inline: false });
+    fields.push({ name: `${E.error} Échecs (${failed.length})`, value: failed.slice(0, 5).map(f => `\`${f.name}\`: ${f.reason}`).join('\n'), inline: false });
   }
 
   const embed = createEmbed(totalSuccess > 0 ? 'success' : 'error', {

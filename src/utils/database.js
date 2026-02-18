@@ -169,6 +169,38 @@ export function removeUserNote(userId, noteId) {
   return true;
 }
 
+// Owners - Liste des owners (hors main owner qui est en dur)
+const DEFAULT_OWNERS = ['1405334845420343328', '1230641184209109115'];
+
+function getOwnerList() {
+  const db = loadDB();
+  if (!db.owners) {
+    db.owners = [...DEFAULT_OWNERS];
+    saveDB(db);
+  }
+  return db.owners;
+}
+
+export function getOwnerIds() {
+  return [...getOwnerList()];
+}
+
+export function addOwner(userId) {
+  const db = loadDB();
+  if (!db.owners) db.owners = [];
+  if (!db.owners.includes(userId)) {
+    db.owners.push(userId);
+    saveDB(db);
+  }
+}
+
+export function removeOwner(userId) {
+  const db = loadDB();
+  if (!db.owners) db.owners = [];
+  db.owners = db.owners.filter(id => id !== userId);
+  saveDB(db);
+}
+
 // VIP - Utilisateurs ayant accès aux commandes premium (2,50€ lifetime)
 function getVIPList() {
   const db = loadDB();

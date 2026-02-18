@@ -1,4 +1,5 @@
 import { createEmbed, formatBleedDate, getTimeAgo } from '../utils/embeds.js';
+import { E } from '../utils/emojis.js';
 
 export default {
   data: {
@@ -48,12 +49,12 @@ export default {
           inline: true,
         },
         {
-          name: '📊 Position',
+          name: `${E.stats} Position`,
           value: `${role.position}`,
           inline: true,
         },
         {
-          name: '✅ Permissions',
+          name: `${E.success} Permissions`,
           value: role.permissions.toArray().slice(0, 10).join(', ') || 'Aucune',
           inline: false,
         },

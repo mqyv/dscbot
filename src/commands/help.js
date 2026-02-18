@@ -87,46 +87,60 @@ export default {
       return message.reply({ embeds: [embed] });
     }
 
-    // Liste des commandes (DM = seulement commandes perso)
-    const commands = Array.from(client.commands.values());
+    // Liste des commandes - TOUTES les commandes du bot
+    const allCommands = Array.from(client.commands.values()).map(c => c.data.name).sort();
     const DM_CATEGORIES = {
       'Perso': ['remind', 'notes'],
       'IA & Fun': ['ai', '8ball', 'coinflip', 'random', 'dice', 'urban'],
-      'Utilitaires': ['ping', 'avatar', 'calc', 'afk'],
+      'Utilitaires': ['ping', 'avatar', 'calc', 'afk', 'help', 'botinfo', 'invite'],
     };
-    const categories = isDM ? DM_CATEGORIES : {
-      'Configuration': ['prefix', 'settings', 'customize', 'alias', 'ignore'],
-      'Booster Role': ['boosterrole', 'boost'],
+    const SERVER_CATEGORIES = {
+      'Propriétaire': ['owner', 'vip', 'customize', 'wl'],
+      'Configuration': ['prefix', 'settings', 'alias', 'ignore', 'autorole'],
+      'Premium': ['backup', 'giveaway', 'extractemojis', 'ticket', 'renew', 'roleall', 'nuke'],
+      'Booster': ['boosterrole', 'boost'],
       'Messages': ['welcome', 'goodbye', 'sticky', 'autoresponder', 'imageonly'],
       'Filtres': ['filter'],
-      'Informations': ['help', 'info', 'userinfo', 'profile', 'serverinfo', 'botinfo', 'channelinfo', 'roleinfo', 'invite', 'snipe', 'firstmessage', 'membercount'],
-      'Modération': ['kick', 'ban', 'unban', 'timeout', 'warn', 'clear', 'roleall', 'hide', 'unhide', 'lock', 'unlock', 'hideall', 'pin', 'unpin', 'nuke', 'slowmode', 'voicemove'],
-      'Utilitaires': ['avatar', 'emoji', 'extractemojis', 'ping', 'say', 'poll', 'uptime', 'calc', 'random', 'dice', 'urban', 'embed', 'renew', 'webhook', 'afk', 'backup', 'remind', 'notes'],
+      'Informations': ['help', 'info', 'userinfo', 'profile', 'serverinfo', 'botinfo', 'channelinfo', 'roleinfo', 'invite', 'snipe', 'firstmessage', 'membercount', 'uptime'],
+      'Modération': ['kick', 'ban', 'unban', 'timeout', 'warn', 'clear', 'hide', 'unhide', 'lock', 'unlock', 'hideall', 'pin', 'unpin', 'slowmode', 'voicemove', 'addrole', 'delrole'],
+      'Utilitaires': ['avatar', 'emoji', 'ping', 'say', 'poll', 'calc', 'random', 'dice', 'urban', 'embed', 'webhook', 'afk', 'remind', 'notes'],
       'Logs': ['logs'],
       'Fun': ['8ball', 'coinflip', 'quote', 'suggest'],
+      'Vouch': ['vouch'],
     };
 
+    const categories = isDM ? DM_CATEGORIES : SERVER_CATEGORIES;
+    const usedNames = new Set();
     const fields = [];
+
     for (const [category, commandNames] of Object.entries(categories)) {
-      const categoryCommands = commands
-        .filter(cmd => commandNames.includes(cmd.data.name))
-        .map(cmd => `\`${prefix}${cmd.data.name}\``)
+      const found = commandNames
+        .filter(name => client.commands.has(name))
+        .map(name => {
+          usedNames.add(name);
+          return `\`${prefix}${name}\``;
+        })
         .join(', ');
-      
-      if (categoryCommands) {
-        fields.push({
-          name: category,
-          value: categoryCommands,
-          inline: false,
-        });
+      if (found) {
+        fields.push({ name: category, value: found, inline: false });
       }
+    }
+
+    // Commandes non catégorisées (au cas où)
+    const uncategorized = allCommands.filter(name => !usedNames.has(name));
+    if (uncategorized.length > 0) {
+      fields.push({
+        name: 'Autres',
+        value: uncategorized.map(n => `\`${prefix}${n}\``).join(', '),
+        inline: false,
+      });
     }
 
     const embed = createEmbed('info', {
       title: isDM ? '🤖 Commandes MP (bot perso)' : 'Commandes disponibles',
       description: `Utilisez \`${prefix}help <commande>\` pour plus d'informations.\nExemple: \`${prefix}help ${isDM ? 'remind' : 'ban'}\``,
-      fields: fields,
-      footer: { text: isDM ? 'Utilisable en messages privés' : `${commands.length} commandes disponibles` },
+      fields,
+      footer: { text: isDM ? 'Utilisable en messages privés' : `${allCommands.length} commandes au total` },
     });
 
     message.reply({ embeds: [embed] });

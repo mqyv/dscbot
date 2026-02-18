@@ -1,4 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
+import { E } from '../utils/emojis.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
 
 export default {
@@ -217,7 +218,7 @@ async function logsSetup(message, args) {
 
   try {
     const loadingEmbed = createEmbed('info', {
-      title: '⏳ Configuration des logs...',
+      title: `${E.loading} Configuration des logs...`,
       description: `Création des canaux de logs dans ${category}...`,
     });
     const loadingMessage = await message.reply({ embeds: [loadingEmbed] });
@@ -285,7 +286,7 @@ async function logsSetup(message, args) {
     
     if (createdChannels.length > 0) {
       fields.push({
-        name: '✅ Canaux créés',
+        name: `${E.success} Canaux créés`,
         value: createdChannels.map(c => c.toString()).join('\n'),
         inline: false,
       });
@@ -293,7 +294,7 @@ async function logsSetup(message, args) {
 
     if (existingChannels.length > 0) {
       fields.push({
-        name: 'ℹ️ Canaux existants réutilisés',
+        name: `${E.info} Canaux existants réutilisés`,
         value: existingChannels.map(c => c.toString()).join('\n'),
         inline: false,
       });
@@ -301,14 +302,14 @@ async function logsSetup(message, args) {
 
     if (errors.length > 0) {
       fields.push({
-        name: '❌ Erreurs',
+        name: `${E.error} Erreurs`,
         value: errors.map(e => `${e.name}: ${e.error}`).join('\n'),
         inline: false,
       });
     }
 
     fields.push({
-      name: '📊 Statistiques',
+      name: `${E.stats} Statistiques`,
       value: `Total configuré: ${Object.keys(logTypes).length - errors.length}/${Object.keys(logTypes).length}`,
       inline: false,
     });

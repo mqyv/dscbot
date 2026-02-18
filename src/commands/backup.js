@@ -1,4 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
+import { E } from '../utils/emojis.js';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { ChannelType } from 'discord.js';
@@ -115,7 +116,7 @@ async function backupCreate(message, args) {
 
   const loadingMsg = await message.reply({
     embeds: [createEmbed('info', {
-      title: '⏳ Sauvegarde en cours...',
+      title: `${E.loading} Sauvegarde en cours...`,
       description: 'Collecte des données du serveur...',
     })],
   });
@@ -208,8 +209,8 @@ async function backupCreate(message, args) {
     if (includeMessages) {
       await loadingMsg.edit({
         embeds: [createEmbed('info', {
-          title: '⏳ Sauvegarde en cours...',
-          description: `Récupération des messages (${durationStr} en arrière)...`,
+        title: `${E.loading} Sauvegarde en cours...`,
+        description: `Récupération des messages (${durationStr} en arrière)...`,
         })],
       });
 
@@ -280,7 +281,7 @@ async function backupRestore(message, args) {
 
   const loadingMsg = await message.reply({
     embeds: [createEmbed('info', {
-      title: '⏳ Restauration en cours...',
+      title: `${E.loading} Restauration en cours...`,
       description: 'Téléchargement et analyse du backup...',
     })],
   });
@@ -299,7 +300,7 @@ async function backupRestore(message, args) {
     // 1. Créer les rôles
     await loadingMsg.edit({
       embeds: [createEmbed('info', {
-        title: '⏳ Restauration...',
+        title: `${E.loading} Restauration...`,
         description: 'Création des rôles...',
       })],
     });
@@ -386,7 +387,7 @@ async function backupRestore(message, args) {
     // 4. Emojis
     await loadingMsg.edit({
       embeds: [createEmbed('info', {
-        title: '⏳ Restauration...',
+        title: `${E.loading} Restauration...`,
         description: 'Ajout des emojis...',
       })],
     });
@@ -410,7 +411,7 @@ async function backupRestore(message, args) {
     if (json.messages && typeof json.messages === 'object') {
       await loadingMsg.edit({
         embeds: [createEmbed('info', {
-          title: '⏳ Restauration...',
+          title: `${E.loading} Restauration...`,
           description: 'Restauration des messages...',
         })],
       });

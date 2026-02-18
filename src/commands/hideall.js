@@ -1,4 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
+import { E } from '../utils/emojis.js';
 import { sendLog } from '../utils/logs.js';
 
 export default {
@@ -75,8 +76,8 @@ export default {
 
       const fields = [
         {
-          name: '📊 Résultats',
-          value: `✅ Cachés: ${hiddenCount}\n❌ Échoués: ${failedCount}`,
+          name: `${E.stats} Résultats`,
+          value: `${E.success} Cachés: ${hiddenCount}\n${E.error} Échoués: ${failedCount}`,
           inline: true,
         },
         {

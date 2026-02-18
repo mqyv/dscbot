@@ -2,8 +2,10 @@ import { createEmbed } from '../utils/embeds.js';
 import { isVIP, addVIP, removeVIP, getVIPUsers } from '../utils/database.js';
 import { isOwner } from '../utils/owners.js';
 
-// Commandes nécessitant VIP (2,50€ lifetime) - propriétaire et whitelistés en sont exemptés
-export const VIP_COMMANDS = ['backup', 'giveaway'];
+// Commandes nécessitant VIP (2,50€ lifetime) - owners exemptés
+export const VIP_COMMANDS = [
+  'backup', 'giveaway', 'extractemojis', 'ticket', 'renew', 'roleall', 'nuke',
+];
 
 export default {
   data: {
@@ -43,7 +45,7 @@ export default {
       embeds: [createEmbed('info', {
         title: 'VIP – Gestion',
         description: [
-          '**Commandes VIP** (2,50€ lifetime) : `backup`, `giveaway`',
+          '**Commandes VIP** (2,50€ lifetime) : `backup`, `giveaway`, `extractemojis`, `ticket`, `renew`, `roleall`, `nuke`',
           '',
           '**`vip add <@user|id>`** – Ajouter un utilisateur VIP',
           '**`vip remove <@user|id>`** – Retirer le statut VIP',
@@ -72,7 +74,7 @@ async function vipAdd(message, args) {
   return message.reply({
     embeds: [createEmbed('success', {
       title: 'VIP ajouté',
-      description: `**${target.tag}** a été ajouté aux utilisateurs VIP.\nAccès aux commandes : backup, giveaway.`,
+      description: `**${target.tag}** a été ajouté aux utilisateurs VIP.\nAccès aux commandes premium (backup, giveaway, extractemojis, ticket, renew, roleall, nuke).`,
     })],
   });
 }

@@ -1,4 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
+import { E } from '../utils/emojis.js';
 
 export default {
   data: {
@@ -30,7 +31,7 @@ export default {
       const example = (def.example || '').slice(0, 500);
 
       const embed = createEmbed('default', {
-        title: `📖 ${def.word}`,
+        title: `${E.book} ${def.word}`,
         description: definition,
         fields: example ? [{ name: 'Exemple', value: example, inline: false }] : [],
         footer: { text: `👍 ${def.thumbs_up} | 👎 ${def.thumbs_down} | Par ${def.author}` },

@@ -1,4 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
+import { E } from '../utils/emojis.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 
@@ -37,7 +38,7 @@ function buildGiveawayEmbed(giveaway, ended = false) {
     fields.push({ name: 'Gagnant(s)', value: giveaway.winners.join(', '), inline: false });
   }
   return createEmbed(ended ? 'success' : 'info', {
-    title: ended ? '🎉 Giveaway terminé' : '🎁 Giveaway',
+    title: ended ? `${E.celebration} Giveaway terminé` : `${E.gift} Giveaway`,
     description: ended
       ? `**${giveaway.prize}**\n\nFélicitations aux gagnants !`
       : `**${giveaway.prize}**\n\nCliquez sur le bouton pour participer !`,
@@ -356,7 +357,7 @@ export async function endGiveaway(client, guildId, id) {
       await msg.edit({ embeds: [embed], components: [getGiveawayButton(true)] });
       if (winners.length > 0) {
         await channel.send({
-          content: `🎉 Félicitations ${winners.join(', ')} ! Vous avez gagné **${giveaway.prize}** !`,
+          content: `${E.celebration} Félicitations ${winners.join(', ')} ! Vous avez gagné **${giveaway.prize}** !`,
         }).catch(() => {});
       }
     }

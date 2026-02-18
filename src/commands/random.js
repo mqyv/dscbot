@@ -1,4 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
+import { E } from '../utils/emojis.js';
 
 export default {
   data: {
@@ -32,7 +33,7 @@ export default {
 
     if (min >= max) {
       const errorEmbed = createEmbed('error', {
-        title: '❌ Erreur',
+        title: `${E.error} Erreur`,
         description: 'Le minimum doit être inférieur au maximum.',
       });
       return message.reply({ embeds: [errorEmbed] });
