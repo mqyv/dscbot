@@ -261,6 +261,7 @@ export const commandHelp = {
     description: 'Copier les emojis/stickers spécifiés ou lister les siens',
     usage: [
       '`emoji list` - Lister emojis et stickers du serveur',
+      '`emoji export` - Exporter les emojis au format config (pour personnalisation)',
       '`emoji <emoji1> [emoji2] ...` - Copier les emojis collés',
       '`emoji` + autocollants - Copier les stickers du message',
     ],
@@ -661,6 +662,67 @@ export const commandHelp = {
     aliases: ['rappel', 'reminder'],
     usage: ['`remind <durée> <message>` - Ex: 30s, 5m, 1h, 2d'],
     examples: ['`remind 5m Pause`', '`remind 1h Réunion`'],
+    permissions: 'Aucune',
+  },
+
+  backup: {
+    description: 'Sauvegarder ou restaurer un serveur complet',
+    usage: [
+      '`backup create [messages] [durée]` - Créer une sauvegarde',
+      '• messages: oui/non (défaut: non)',
+      '• durée: 7j, 30j, 14d si messages=oui',
+      '`backup restore` - Restaurer (joindre le fichier .json)',
+    ],
+    examples: [
+      '`backup create`',
+      '`backup create oui 30j`',
+      '`backup restore` + fichier en pièce jointe',
+    ],
+    permissions: 'Administrateur',
+  },
+
+  giveaway: {
+    description: 'Gérer les giveaways (cadeaux)',
+    usage: [
+      '`giveaway create <prix> <durée> <gagnants>` - Créer un giveaway',
+      '`giveaway end <id>` - Terminer un giveaway',
+      '`giveaway reroll <id>` - Retirer les gagnants',
+      '`giveaway list` - Liste des giveaways actifs',
+    ],
+    examples: [
+      '`giveaway create Nitro 1h 1`',
+      '`giveaway create Jeu Steam 24d 3`',
+    ],
+    permissions: 'Gérer le serveur',
+  },
+
+  vip: {
+    description: 'Gérer les abonnés VIP (propriétaire uniquement)',
+    usage: [
+      '`vip add <@user|id>` - Ajouter un utilisateur VIP',
+      '`vip remove <@user|id>` - Retirer le statut VIP',
+      '`vip list` - Liste des utilisateurs VIP',
+      '`vip check [@user]` - Vérifier le statut VIP',
+    ],
+    examples: [
+      '`vip add @User`',
+      '`vip list`',
+    ],
+    permissions: 'Propriétaire uniquement',
+  },
+
+  vouch: {
+    description: 'Système de recommandations (vouches)',
+    usage: [
+      '`vouch add <@user> [commentaire]` - Ajouter un vouch',
+      '`vouch remove <id>` - Retirer votre vouch',
+      '`vouch list [@user]` - Liste des vouches',
+      '`vouch profile [@user]` - Profil vouch',
+    ],
+    examples: [
+      '`vouch add @User Très bon vendeur`',
+      '`vouch profile @User`',
+    ],
     permissions: 'Aucune',
   },
 

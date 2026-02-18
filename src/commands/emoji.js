@@ -25,6 +25,11 @@ export default {
       return;
     }
 
+    if (subcommand === 'export') {
+      await emojiExport(message);
+      return;
+    }
+
     // Sans sous-commande = copier (emojis/stickers d'un serveur vers le mien)
     if (!message.member.permissions.has('ManageEmojisAndStickers')) {
       return message.reply({
@@ -41,6 +46,7 @@ export default {
           title: 'Emoji – Copier ou lister',
           description: [
             '**`emoji list`** – Lister les emojis et stickers du serveur',
+            '**`emoji export`** – Exporter les emojis au format config (pour personnalisation du bot)',
             '**`emoji <emoji1> [emoji2] ...`** – Copier les emojis/stickers spécifiés',
             '',
             'Collez les emojis ou ajoutez des autocollants au message.',
@@ -105,6 +111,72 @@ async function emojiList(message, args) {
   });
 
   message.reply({ embeds: [embed] });
+}
+
+/** Clés utilisées pour la personnalisation des emojis du bot */
+const EMOJI_MAPPING_KEYS = [
+  'success', 'error', 'loading', 'warning', 'info', 'skipped',
+  'stats', 'ticket', 'gift', 'celebration', 'lock', 'notes',
+  'reminder', 'dice', 'book',
+];
+
+async function emojiExport(message) {
+  const guild = message.guild;
+  const emojis = guild.emojis.cache;
+
+  if (emojis.size === 0) {
+    return message.reply({
+      embeds: [createEmbed('info', {
+        title: 'Export emojis',
+        description: 'Ce serveur n\'a aucun emoji. Ajoutez des emojis puis réessayez.',
+      })],
+    });
+  }
+
+  const lines = [];
+  lines.push('# Format: <:nom:id> ou <a:nom:id> pour les animés');
+  lines.push('# Copiez les lignes ci-dessous et remplacez par vos emojis pour configurer le bot.');
+  lines.push('');
+  lines.push('# === EMOJIS DU SERVEUR ===');
+  for (const [, e] of emojis) {
+    const format = e.animated ? `<a:${e.name}:${e.id}>` : `<:${e.name}:${e.id}>`;
+    lines.push(`${e.name}: ${format}`);
+  }
+  lines.push('');
+  lines.push('# === TEMPLATE À REMPLIR (pour settings emojis) ===');
+  lines.push('# Associez chaque clé à un emoji de la liste ci-dessus :');
+  for (const key of EMOJI_MAPPING_KEYS) {
+    lines.push(`${key}: <:nom:id>`);
+  }
+
+  const content = lines.join('\n');
+
+  if (content.length <= 1900) {
+    return message.reply({
+      embeds: [createEmbed('info', {
+        title: 'Export emojis – Format config',
+        description: '```\n' + content.slice(0, 1800) + (content.length > 1800 ? '\n...' : '') + '\n```',
+        footer: { text: 'Utilisez emoji export pour obtenir le fichier complet si nécessaire' },
+      })],
+    });
+  }
+
+  const { writeFileSync } = await import('fs');
+  const { join } = await import('path');
+  const filename = `emoji_export_${guild.id}_${Date.now()}.txt`;
+  const filepath = join(process.cwd(), 'temp', filename);
+  const { existsSync, mkdirSync } = await import('fs');
+  const tempDir = join(process.cwd(), 'temp');
+  if (!existsSync(tempDir)) mkdirSync(tempDir, { recursive: true });
+  writeFileSync(filepath, content);
+
+  return message.reply({
+    embeds: [createEmbed('success', {
+      title: 'Export emojis',
+      description: `${emojis.size} emoji(s) exporté(s).\n\nFichier joint : copiez le contenu et utilisez-le avec \`settings emojis\` pour personnaliser les emojis du bot.`,
+    })],
+    files: [{ attachment: filepath, name: filename }],
+  });
 }
 
 async function emojiCopyFromInput(message, args) {

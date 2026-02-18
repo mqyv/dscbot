@@ -4,16 +4,10 @@ import { readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createEmbed } from './utils/embeds.js';
-import { getPrefix, isWhitelisted, getGuildData, saveGuildData, addPreviousName, getUserData, saveUserData } from './utils/database.js';
+import { getPrefix, isWhitelisted, getGuildData, saveGuildData, addPreviousName, getUserData, saveUserData, isVIP } from './utils/database.js';
+import { isOwner, isMainOwner } from './utils/owners.js';
 
 config();
-
-// IDs des propriétaires du bot
-const OWNER_IDS = [
-  process.env.OWNER_ID || '1214655422980423731', // Propriétaire principal
-  '1405334845420343328', // Owner supplémentaire
-  '1230641184209109115', // Owner supplémentaire
-].filter(id => id); // Filtrer les IDs vides
 
 // Toutes les commandes accessibles au propriétaire OU aux whitelistés (whitelist par serveur)
 const WL_COMMANDS = [
@@ -30,11 +24,6 @@ const DM_COMMANDS = [
   'ai', 'ping', '8ball', 'coinflip', 'random', 'dice', 'urban', 'help', 'avatar', 'calc', 'afk',
   'remind', 'notes', 'botinfo', 'invite'
 ];
-
-// Fonction pour vérifier si l'utilisateur est un propriétaire
-function isOwner(userId) {
-  return OWNER_IDS.includes(userId);
-}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -72,6 +61,8 @@ client.once(Events.ClientReady, async () => {
   });
   const { restoreBotActivity } = await import('./commands/customize.js');
   await restoreBotActivity(client);
+  const { startGiveawayChecker } = await import('./commands/giveaway.js');
+  startGiveawayChecker(client);
 });
 
 // Construire args et message-like depuis une interaction (pour les commandes prefix)
@@ -169,8 +160,17 @@ client.on(Events.InteractionCreate, async interaction => {
     return;
   }
 
-  // Gestion des boutons (config embeds + création/fermeture tickets)
+  // Gestion des boutons (config embeds + création/fermeture tickets + giveaway)
   if (interaction.isButton()) {
+    if (interaction.customId === 'giveaway_join') {
+      try {
+        const { handleGiveawayButton } = await import('./commands/giveaway.js');
+        const handled = await handleGiveawayButton(interaction);
+        if (handled) return;
+      } catch (error) {
+        console.error('Erreur bouton giveaway:', error);
+      }
+    }
     if (interaction.customId.startsWith('ticket_embed_')) {
       try {
         const { handleTicketEmbedButton } = await import('./commands/ticket.js');
@@ -217,14 +217,23 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 
   // Vérifier les permissions : propriétaire OU whitelisté sur ce serveur
+  const guildId = interaction.guild?.id;
   if (WL_COMMANDS.includes(commandName)) {
-    const guildId = interaction.guild?.id;
     if (!isOwner(interaction.user.id) && !isWhitelisted(interaction.user.id, guildId)) {
       return interaction.reply({
         content: 'Cette commande est réservée au propriétaire du bot ou aux utilisateurs whitelistés sur ce serveur.',
         ephemeral: true,
       });
     }
+  }
+
+  // Vérifier VIP pour les commandes premium
+  const { VIP_COMMANDS } = await import('./commands/vip.js');
+  if (VIP_COMMANDS.includes(commandName) && !isOwner(interaction.user.id) && !isVIP(interaction.user.id)) {
+    return interaction.reply({
+      content: 'Cette commande nécessite le statut **VIP** (2,50€ lifetime).',
+      ephemeral: true,
+    });
   }
 
   try {
@@ -577,8 +586,8 @@ client.on(Events.MessageCreate, async message => {
   if (!command) return;
 
   // Vérifier les permissions : propriétaire OU whitelisté sur ce serveur
+  const guildId = message.guild?.id;
   if (WL_COMMANDS.includes(commandName)) {
-    const guildId = message.guild?.id;
     if (!isOwner(message.author.id) && !isWhitelisted(message.author.id, guildId)) {
       const errorEmbed = createEmbed('error', {
         title: 'Permission refusée',
@@ -586,6 +595,16 @@ client.on(Events.MessageCreate, async message => {
       });
       return message.reply({ embeds: [errorEmbed] });
     }
+  }
+
+  // Vérifier VIP pour les commandes premium (backup, giveaway) - propriétaire exempté
+  const { VIP_COMMANDS } = await import('./commands/vip.js');
+  if (VIP_COMMANDS.includes(commandName) && !isOwner(message.author.id) && !isVIP(message.author.id)) {
+    const errorEmbed = createEmbed('error', {
+      title: 'Commande VIP',
+      description: 'Cette commande nécessite le statut **VIP** (2,50€ lifetime).\nContactez le propriétaire du bot pour plus d\'informations.',
+    });
+    return message.reply({ embeds: [errorEmbed] });
   }
 
   try {

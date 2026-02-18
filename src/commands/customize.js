@@ -1,5 +1,6 @@
 import { createEmbed } from '../utils/embeds.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
+import { isMainOwner } from '../utils/owners.js';
 
 const PROFILE_KEYS = ['avatar', 'banner', 'activity', 'bio', 'username', 'nickname'];
 
@@ -56,10 +57,11 @@ export default {
     description: 'Personnaliser le profil complet du bot (pp, bannière, activité, bio, etc.)',
   },
   execute: async (message, args) => {
-    if (message.guild && !message.member?.permissions?.has('ManageGuild')) {
+    const authorId = message.author?.id || message.user?.id;
+    if (!isMainOwner(authorId)) {
       const errorEmbed = createEmbed('error', {
         title: 'Permission refusée',
-        description: 'Vous devez avoir la permission "Gérer le serveur".',
+        description: 'Seul le propriétaire principal du bot peut modifier le profil (avatar, bannière, activité, etc.).',
       });
       return message.reply({ embeds: [errorEmbed] });
     }

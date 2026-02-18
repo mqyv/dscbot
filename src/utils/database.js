@@ -169,6 +169,37 @@ export function removeUserNote(userId, noteId) {
   return true;
 }
 
+// VIP - Utilisateurs ayant accès aux commandes premium (2,50€ lifetime)
+function getVIPList() {
+  const db = loadDB();
+  if (!db.vip) db.vip = [];
+  return db.vip;
+}
+
+export function isVIP(userId) {
+  return getVIPList().includes(userId);
+}
+
+export function addVIP(userId) {
+  const db = loadDB();
+  if (!db.vip) db.vip = [];
+  if (!db.vip.includes(userId)) {
+    db.vip.push(userId);
+    saveDB(db);
+  }
+}
+
+export function removeVIP(userId) {
+  const db = loadDB();
+  if (!db.vip) db.vip = [];
+  db.vip = db.vip.filter(id => id !== userId);
+  saveDB(db);
+}
+
+export function getVIPUsers() {
+  return [...getVIPList()];
+}
+
 // Ajouter un ancien pseudo à l'historique
 export function addPreviousName(userId, username) {
   const userData = getUserData(userId);
