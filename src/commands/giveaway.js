@@ -1,7 +1,7 @@
 import { createEmbed } from '../utils/embeds.js';
-import { E } from '../utils/emojis.js';
+import { getE, E } from '../utils/emojis.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 
 /**
  * Parse une durée (ex: 10m, 1h, 2d) en millisecondes
@@ -26,8 +26,18 @@ function formatDuration(ms) {
   return `${s}s`;
 }
 
-function buildGiveawayEmbed(giveaway, ended = false) {
+function parseHexColor(hex) {
+  if (!hex) return null;
+  const m = String(hex).replace(/^#/, '').match(/^([0-9A-Fa-f]{6})$/);
+  return m ? parseInt(m[1], 16) : null;
+}
+
+function buildGiveawayEmbed(giveaway, ended = false, guild = null) {
+  const e = guild ? getE(guild) : E;
   const endDate = new Date(giveaway.endAt);
+  const custom = giveaway.embed || {};
+  const color = parseHexColor(custom.color) ?? (ended ? 0x57F287 : 0x5865F2);
+
   const fields = [
     { name: 'Prix', value: giveaway.prize, inline: true },
     { name: 'Gagnants', value: String(giveaway.winnersCount), inline: true },
@@ -37,17 +47,23 @@ function buildGiveawayEmbed(giveaway, ended = false) {
   if (ended && giveaway.winners?.length) {
     fields.push({ name: 'Gagnant(s)', value: giveaway.winners.join(', '), inline: false });
   }
-  return createEmbed(ended ? 'success' : 'info', {
-    title: ended ? `${E.celebration} Giveaway terminé` : `${E.gift} Giveaway`,
-    description: ended
-      ? `**${giveaway.prize}**\n\nFélicitations aux gagnants !`
-      : `**${giveaway.prize}**\n\nCliquez sur le bouton pour participer !`,
-    fields,
-    footer: ended
-      ? { text: `Organisé par ${giveaway.hostTag || 'Inconnu'}` }
-      : { text: `Organisé par ${giveaway.hostTag || 'Inconnu'} • ID: ${giveaway.id}` },
-    timestamp: true,
-  });
+  if (giveaway.requiredRoles?.length && !ended) {
+    const rolesStr = giveaway.requiredRoles.map(r => `<@&${r}>`).join(', ');
+    fields.push({ name: 'Conditions', value: `Rôle requis : ${rolesStr}`, inline: false });
+  }
+
+  const title = custom.title || (ended ? `${e.celebration} Giveaway terminé` : `${e.gift} Giveaway`);
+  const description = custom.description || (ended
+    ? `**${giveaway.prize}**\n\nFélicitations aux gagnants !`
+    : `**${giveaway.prize}**\n\nCliquez sur le bouton pour participer !`);
+
+  return new EmbedBuilder()
+    .setColor(color)
+    .setTitle(title)
+    .setDescription(description)
+    .addFields(fields)
+    .setFooter({ text: `Organisé par ${giveaway.hostTag || 'Inconnu'} • ID: ${giveaway.id}` })
+    .setTimestamp();
 }
 
 function getGiveawayButton(ended) {
@@ -60,6 +76,63 @@ function getGiveawayButton(ended) {
   );
 }
 
+/** Parse les args de create : prize, duration, winners + options --channel, --title, --desc, --color, --role */
+function parseCreateArgs(args) {
+  const result = { prize: null, durationMs: null, winnersCount: null, channel: null, embed: {}, requiredRoles: [] };
+  if (args.length < 3) return result;
+
+  result.prize = args[0];
+  result.durationMs = parseDuration(args[1]);
+  result.winnersCount = parseInt(args[2], 10);
+
+  let i = 3;
+  const takeUntilNextFlag = (start) => {
+    const parts = [];
+    for (let j = start; j < args.length; j++) {
+      if (args[j].startsWith('--')) break;
+      parts.push(args[j]);
+    }
+    return { value: parts.join(' ').replace(/^["']|["']$/g, ''), consumed: parts.length };
+  };
+
+  while (i < args.length) {
+    const a = args[i];
+    if (a === '--channel' && args[i + 1]) {
+      result.channel = args[i + 1].replace(/[<#>]/g, '');
+      i += 2;
+      continue;
+    }
+    if (a === '--title') {
+      const { value, consumed } = takeUntilNextFlag(i + 1);
+      result.embed.title = value || null;
+      i += 1 + consumed;
+      continue;
+    }
+    if (a === '--desc') {
+      const { value, consumed } = takeUntilNextFlag(i + 1);
+      result.embed.description = value || null;
+      i += 1 + consumed;
+      continue;
+    }
+    if (a === '--color' && args[i + 1]) {
+      result.embed.color = args[i + 1];
+      i += 2;
+      continue;
+    }
+    if (a === '--role' && args[i + 1]) {
+      const roleId = args[i + 1].replace(/[<@&>]/g, '');
+      if (roleId) result.requiredRoles.push(roleId);
+      i += 2;
+      continue;
+    }
+    if (a.match(/^<#\d+>$/)) {
+      result.channel = a.replace(/[<#>]/g, '');
+    }
+    i++;
+  }
+  return result;
+}
+
 export default {
   data: {
     name: 'giveaway',
@@ -70,7 +143,7 @@ export default {
       return message.reply({
         embeds: [createEmbed('error', {
           title: 'Permission refusée',
-          description: 'Vous devez avoir la permission "Gérer le serveur".',
+          description: 'Vous devez avoir "Gérer le serveur".',
         })],
       });
     }
@@ -98,12 +171,21 @@ export default {
       embeds: [createEmbed('info', {
         title: 'Giveaway – Aide',
         description: [
-          '**`giveaway create <prix> <durée> <gagnants>`** – Créer un giveaway',
-          '• Durée: ex. `10m`, `1h`, `24d`',
+          '**`giveaway create <prix> <durée> <gagnants>`** – Créer',
+          '• Durée: 10m, 1h, 24d',
           '',
-          '**`giveaway end <id>`** – Terminer un giveaway maintenant',
-          '**`giveaway reroll <id>`** – Retirer les gagnants',
-          '**`giveaway list`** – Liste des giveaways actifs',
+          '**Options (optionnelles) :**',
+          '• `#canal` ou `--channel #canal` – Salon où envoyer',
+          '• `--title "Titre"` – Titre de l\'embed',
+          '• `--desc "Description"` – Description',
+          '• `--color 5865F2` – Couleur (hex)',
+          '• `--role @rôle` – Rôle requis pour participer (répétable)',
+          '',
+          '**Exemple :** `giveaway create Nitro 1h 1 #giveaways --role @Membre --title "🎁 Nitro Gratuit"`',
+          '',
+          '**`giveaway end <id>`** – Terminer',
+          '**`giveaway reroll <id>`** – Relancer les gagnants',
+          '**`giveaway list`** – Liste des actifs',
         ].join('\n'),
       })],
     });
@@ -111,7 +193,9 @@ export default {
 };
 
 async function giveawayCreate(message, args) {
-  if (args.length < 3) {
+  const parsed = parseCreateArgs(args);
+
+  if (!parsed.prize || !parsed.durationMs || !parsed.winnersCount) {
     return message.reply({
       embeds: [createEmbed('error', {
         title: 'Erreur',
@@ -120,41 +204,56 @@ async function giveawayCreate(message, args) {
     });
   }
 
-  const prize = args[0];
-  const durationMs = parseDuration(args[1]);
-  const winnersCount = parseInt(args[2], 10);
-
-  if (!durationMs || durationMs < 60000) {
+  if (parsed.durationMs < 60000) {
     return message.reply({
       embeds: [createEmbed('error', {
         title: 'Erreur',
-        description: 'Durée invalide. Ex: 10m, 1h, 24d (min 1 minute)',
+        description: 'Durée min 1 minute (10m, 1h, 24d)',
       })],
     });
   }
-  if (isNaN(winnersCount) || winnersCount < 1 || winnersCount > 20) {
+  if (parsed.winnersCount < 1 || parsed.winnersCount > 20) {
     return message.reply({
       embeds: [createEmbed('error', {
         title: 'Erreur',
-        description: 'Nombre de gagnants invalide (1-20).',
+        description: 'Gagnants: 1-20',
       })],
     });
   }
 
-  const endAt = Date.now() + durationMs;
+  const targetChannel = parsed.channel
+    ? message.guild.channels.cache.get(parsed.channel)
+    : message.channel;
+  if (!targetChannel?.isTextBased()) {
+    return message.reply({
+      embeds: [createEmbed('error', {
+        title: 'Erreur',
+        description: 'Canal invalide ou inaccessible.',
+      })],
+    });
+  }
+
+  const endAt = Date.now() + parsed.durationMs;
   const id = `gw_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+  const embedOpts = {};
+  if (parsed.embed.title) embedOpts.title = parsed.embed.title;
+  if (parsed.embed.description) embedOpts.description = parsed.embed.description;
+  if (parsed.embed.color) embedOpts.color = parsed.embed.color;
 
   const giveaway = {
     id,
-    channelId: message.channel.id,
+    channelId: targetChannel.id,
     hostId: message.author.id,
     hostTag: message.author.tag,
-    prize,
+    prize: parsed.prize,
     endAt,
-    winnersCount,
+    winnersCount: parsed.winnersCount,
     participants: [],
     winners: null,
     ended: false,
+    embed: Object.keys(embedOpts).length ? embedOpts : null,
+    requiredRoles: parsed.requiredRoles.length ? parsed.requiredRoles : null,
   };
 
   const guildData = getGuildData(message.guild.id);
@@ -162,10 +261,10 @@ async function giveawayCreate(message, args) {
   guildData.giveaways[id] = giveaway;
   saveGuildData(message.guild.id, guildData);
 
-  const embed = buildGiveawayEmbed(giveaway);
+  const embed = buildGiveawayEmbed(giveaway, false, message.guild);
   const row = getGiveawayButton(false);
 
-  const giveawayMsg = await message.channel.send({
+  const giveawayMsg = await targetChannel.send({
     embeds: [embed],
     components: [row],
   });
@@ -176,7 +275,7 @@ async function giveawayCreate(message, args) {
   await message.reply({
     embeds: [createEmbed('success', {
       title: 'Giveaway créé',
-      description: `Giveaway **${prize}** créé. Fin dans ${formatDuration(durationMs)}.`,
+      description: `**${parsed.prize}** envoyé dans ${targetChannel}. Fin dans ${formatDuration(parsed.durationMs)}.`,
     })],
   });
 }
@@ -187,7 +286,7 @@ async function giveawayEnd(message, args) {
     return message.reply({
       embeds: [createEmbed('error', {
         title: 'Erreur',
-        description: 'Usage: `giveaway end <id>`\nUtilisez `giveaway list` pour voir les IDs.',
+        description: 'Usage: `giveaway end <id>`',
       })],
     });
   }
@@ -199,7 +298,7 @@ async function giveawayEnd(message, args) {
     return message.reply({
       embeds: [createEmbed('error', {
         title: 'Erreur',
-        description: 'Giveaway introuvable ou déjà terminé.',
+        description: 'Giveaway introuvable.',
       })],
     });
   }
@@ -231,7 +330,7 @@ async function giveawayReroll(message, args) {
     return message.reply({
       embeds: [createEmbed('error', {
         title: 'Erreur',
-        description: 'Giveaway introuvable ou pas encore terminé.',
+        description: 'Giveaway introuvable ou pas terminé.',
       })],
     });
   }
@@ -241,7 +340,7 @@ async function giveawayReroll(message, args) {
     return message.reply({
       embeds: [createEmbed('error', {
         title: 'Erreur',
-        description: 'Aucun participant pour reroll.',
+        description: 'Aucun participant.',
       })],
     });
   }
@@ -257,7 +356,7 @@ async function giveawayReroll(message, args) {
     const channel = await message.guild.channels.fetch(giveaway.channelId).catch(() => null);
     const msg = channel ? await channel.messages.fetch(giveaway.messageId).catch(() => null) : null;
     if (msg) {
-      const embed = buildGiveawayEmbed(giveaway, true);
+      const embed = buildGiveawayEmbed(giveaway, true, message.guild);
       await msg.edit({ embeds: [embed], components: [getGiveawayButton(true)] });
     }
   } catch {}
@@ -314,6 +413,21 @@ export async function handleGiveawayButton(interaction) {
     return true;
   }
 
+  // Vérifier les conditions (rôles requis)
+  const requiredRoles = giveaway.requiredRoles || [];
+  if (requiredRoles.length > 0) {
+    const memberRoles = interaction.member?.roles?.cache;
+    const hasRole = requiredRoles.some(roleId => memberRoles?.has(roleId));
+    if (!hasRole) {
+      const rolesStr = requiredRoles.map(r => `<@&${r}>`).join(', ');
+      await interaction.reply({
+        content: `Vous devez avoir le rôle ${rolesStr} pour participer.`,
+        ephemeral: true,
+      });
+      return true;
+    }
+  }
+
   const participants = giveaway.participants || [];
   const userId = interaction.user.id;
 
@@ -328,7 +442,7 @@ export async function handleGiveawayButton(interaction) {
   giveaway.participants = participants;
   saveGuildData(interaction.guild.id, guildData);
 
-  const embed = buildGiveawayEmbed(giveaway);
+  const embed = buildGiveawayEmbed(giveaway, false, interaction.guild);
   await interaction.message.edit({ embeds: [embed] }).catch(() => {});
 
   return true;
@@ -353,11 +467,12 @@ export async function endGiveaway(client, guildId, id) {
     const channel = guild ? await guild.channels.fetch(giveaway.channelId).catch(() => null) : null;
     const msg = channel ? await channel.messages.fetch(giveaway.messageId).catch(() => null) : null;
     if (msg) {
-      const embed = buildGiveawayEmbed(giveaway, true);
+      const e = guild ? getE(guild) : E;
+      const embed = buildGiveawayEmbed(giveaway, true, guild);
       await msg.edit({ embeds: [embed], components: [getGiveawayButton(true)] });
       if (winners.length > 0) {
         await channel.send({
-          content: `${E.celebration} Félicitations ${winners.join(', ')} ! Vous avez gagné **${giveaway.prize}** !`,
+          content: `${e.celebration} Félicitations ${winners.join(', ')} ! Vous avez gagné **${giveaway.prize}** !`,
         }).catch(() => {});
       }
     }

@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { E } from '../utils/emojis.js';
+import { getE } from '../utils/emojis.js';
 import { getUserNotes, addUserNote, removeUserNote, getPrefix } from '../utils/database.js';
 
 export default {
@@ -8,20 +8,21 @@ export default {
     description: 'Gérer tes notes personnelles (MP ou serveur)',
   },
   execute: async (message, args, client) => {
+    const e = getE(message.guild);
     const prefix = getPrefix(message.guild?.id, message.author.id);
     const notes = getUserNotes(message.author.id);
 
     if (!args.length || args[0].toLowerCase() === 'list' || args[0].toLowerCase() === 'liste') {
       if (notes.length === 0) {
         const embed = createEmbed('info', {
-          title: `${E.notes} Mes notes`,
+          title: `${e.notes} Mes notes`,
           description: `Aucune note. Utilise \`${prefix}notes add <texte>\` pour en ajouter.`,
         });
         return message.reply({ embeds: [embed] });
       }
       const list = notes.slice(0, 10).map((n, i) => `**${i + 1}.** ${n.content.slice(0, 50)}${n.content.length > 50 ? '...' : ''}`).join('\n');
       const embed = createEmbed('info', {
-        title: `${E.notes} Mes notes (${notes.length})`,
+        title: `${e.notes} Mes notes (${notes.length})`,
         description: list + (notes.length > 10 ? `\n\n*...et ${notes.length - 10} autre(s)*` : ''),
         footer: { text: `${prefix}notes add <texte> | view <id> | remove <id>` },
       });
@@ -37,7 +38,7 @@ export default {
       }
       const note = addUserNote(message.author.id, content);
       const embed = createEmbed('success', {
-        title: `${E.notes} Note ajoutée`,
+        title: `${e.notes} Note ajoutée`,
         description: content.slice(0, 500),
         footer: { text: `ID: ${note.id}` },
       });
@@ -51,7 +52,7 @@ export default {
         return message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: 'Note introuvable.' })] });
       }
       const embed = createEmbed('info', {
-        title: `${E.notes} Note #${note.id}`,
+        title: `${e.notes} Note #${note.id}`,
         description: note.content,
         footer: { text: new Date(note.createdAt).toLocaleString('fr-FR') },
       });
@@ -67,11 +68,11 @@ export default {
       if (!removed) {
         return message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: 'Note introuvable.' })] });
       }
-      return message.reply({ embeds: [createEmbed('success', { title: `${E.notes} Note supprimée`, description: 'La note a été supprimée.' })] });
+      return message.reply({ embeds: [createEmbed('success', { title: `${e.notes} Note supprimée`, description: 'La note a été supprimée.' })] });
     }
 
     const embed = createEmbed('info', {
-      title: `${E.notes} Notes`,
+      title: `${e.notes} Notes`,
       description: `**Sous-commandes:**\n\`${prefix}notes add <texte>\` - Ajouter\n\`${prefix}notes list\` - Liste\n\`${prefix}notes view <id>\` - Voir\n\`${prefix}notes remove <id>\` - Supprimer`,
     });
     message.reply({ embeds: [embed] });

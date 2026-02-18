@@ -4,7 +4,7 @@ import { readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createEmbed } from './utils/embeds.js';
-import { E } from './utils/emojis.js';
+import { getE } from './utils/emojis.js';
 import { getPrefix, isWhitelisted, getGuildData, saveGuildData, addPreviousName, getUserData, saveUserData } from './utils/database.js';
 import { isOwner, isMainOwner } from './utils/owners.js';
 
@@ -17,7 +17,7 @@ const WL_COMMANDS = [
   'ban', 'kick', 'timeout', 'warn', 'unban', 'clear', 'say',
   'hide', 'unhide', 'lock', 'unlock', 'hideall',
   'alias', 'sticky', 'autoresponder', 'imageonly', 'pin', 'unpin', 'webhook', 'ignore',
-  'autorole', 'addrole', 'delrole', 'backup', 'giveaway', 'extractemojis', 'ticket', 'renew', 'roleall', 'nuke'
+  'autorole', 'addrole', 'delrole', 'backup', 'giveaway', 'extractemojis', 'ticket', 'renew', 'roleall', 'nuke', 'antiraid'
 ];
 
 // Commandes utilisables en MP (bot perso)
@@ -36,6 +36,7 @@ const client = new Client({
     GatewayIntentBits.DirectMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildInvites,
   ],
 });
 
@@ -64,6 +65,10 @@ client.once(Events.ClientReady, async () => {
   await restoreBotActivity(client);
   const { startGiveawayChecker } = await import('./commands/giveaway.js');
   startGiveawayChecker(client);
+  const { fetchAndCacheInvites } = await import('./utils/invites.js');
+  for (const [guildId, guild] of client.guilds.cache) {
+    fetchAndCacheInvites(guild).catch(() => {});
+  }
 });
 
 // Construire args et message-like depuis une interaction (pour les commandes prefix)
@@ -229,9 +234,9 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 
   try {
-    // La commande ai a sa propre logique (interaction)
-    if (commandName === 'ai') {
-      await command.execute(interaction);
+    // Commandes slash avec logique interaction directe
+    if (commandName === 'ai' || commandName === 'vouch') {
+      await command.execute(interaction, [], client);
     } else {
       const { messageLike, args } = buildContextFromInteraction(interaction);
       await command.execute(messageLike, args, client);
@@ -251,12 +256,26 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 });
 
+// Invites - garder le cache à jour
+client.on(Events.InviteCreate, async invite => {
+  const { getInviteCache } = await import('./utils/invites.js');
+  const cache = getInviteCache(invite.guild?.id);
+  if (cache) cache.set(invite.code, { uses: invite.uses || 0, inviterId: invite.inviter?.id || null });
+});
+client.on(Events.InviteDelete, invite => {
+  const { getInviteCache } = await import('./utils/invites.js');
+  const cache = getInviteCache(invite.guild?.id);
+  if (cache) cache.delete(invite.code);
+});
+
 // Événement : Bot rejoint un serveur
-client.on(Events.GuildCreate, guild => {
+client.on(Events.GuildCreate, async guild => {
   console.log(`\n🎉 BOT AJOUTÉ À UN SERVEUR !`);
   console.log(`   Serveur: ${guild.name} (${guild.id})`);
   console.log(`   Membres: ${guild.memberCount}`);
   console.log(`   Propriétaire: ${guild.ownerId}\n`);
+  const { fetchAndCacheInvites } = await import('./utils/invites.js');
+  fetchAndCacheInvites(guild).catch(() => {});
 });
 
 // Événement : Changement de pseudo
@@ -318,8 +337,36 @@ client.on(Events.GuildDelete, guild => {
 client.on(Events.GuildMemberAdd, async member => {
   const { getGuildData } = await import('./utils/database.js');
   const { sendLog } = await import('./utils/logs.js');
+  const { checkAntiraid } = await import('./utils/antiraid.js');
+  const { findUsedInvite, addInvite, fetchAndCacheInvites } = await import('./utils/invites.js');
   const guildData = getGuildData(member.guild.id);
-  
+
+  // Antiraid - kick/ban si trop de joins
+  const wasRaidKicked = await checkAntiraid(member);
+  if (wasRaidKicked) return;
+
+  // Invite tracking - trouver l'inviteur et poster dans le salon
+  const { inviterId } = await findUsedInvite(member.guild, member);
+  if (inviterId) {
+    addInvite(member.guild.id, inviterId);
+  }
+  await fetchAndCacheInvites(member.guild).catch(() => {});
+  const inviteChannelId = guildData.settings?.inviteChannel;
+  if (inviteChannelId) {
+    const ch = member.guild.channels.cache.get(inviteChannelId);
+    if (ch?.isTextBased()) {
+      const inviter = inviterId ? `<@${inviterId}>` : 'Inconnu';
+      await ch.send({
+        embeds: [{
+          color: 0x5865F2,
+          description: `${member} a rejoint le serveur • Invité par ${inviter}`,
+          thumbnail: { url: member.user.displayAvatarURL({ size: 256 }) },
+          timestamp: new Date().toISOString(),
+        }],
+      }).catch(() => {});
+    }
+  }
+
   // Autorole - attribuer le rôle à l'arrivée
   const autoroleId = guildData.settings?.autorole;
   if (autoroleId) {
@@ -501,9 +548,17 @@ client.on(Events.MessageCreate, async message => {
   }
 
   // === GESTION DES SERVEURS ===
-  // Vérifier les filtres de mots
+  try {
   const { getGuildData } = await import('./utils/database.js');
   const guildData = getGuildData(message.guild.id);
+
+  // Vérifier la liste d'ignorés (channels / users)
+  const ignore = guildData.ignore || { users: [], channels: [] };
+  if (ignore.channels?.includes(message.channel.id) || ignore.users?.includes(message.author.id)) {
+    return;
+  }
+
+  // Vérifier les filtres de mots
   const filteredWords = guildData.settings?.filter?.words || [];
   const exemptRoles = guildData.settings?.filter?.exempt || [];
   
@@ -518,7 +573,7 @@ client.on(Events.MessageCreate, async message => {
       if (containsFilteredWord) {
         await message.delete().catch(() => {});
         const warnEmbed = createEmbed('warning', {
-          title: `${E.warning} Message supprimé`,
+          title: `${getE(message.guild).warning} Message supprimé`,
           description: `${message.author}, votre message contient un mot filtré.`,
         });
         const warningMsg = await message.channel.send({ embeds: [warnEmbed] });
@@ -547,9 +602,13 @@ client.on(Events.MessageCreate, async message => {
     } catch {}
   }
 
-  // Préfixe personnalisable
-  const prefix = getPrefix(message.guild.id, message.author.id);
-  const isCommand = message.content.startsWith(prefix);
+  // Préfixe personnalisable (avec fallback sur "," si le préfixe configuré ne matche pas)
+  let prefix = getPrefix(message.guild.id, message.author.id);
+  let isCommand = message.content.startsWith(prefix);
+  if (!isCommand && message.content.startsWith(',') && prefix !== ',') {
+    prefix = ',';
+    isCommand = true;
+  }
   
   // Gérer les autoresponders (seulement si ce n'est pas une commande)
   if (!isCommand) {
@@ -600,6 +659,17 @@ client.on(Events.MessageCreate, async message => {
     });
 
     message.reply({ embeds: [errorEmbed] }).catch(console.error);
+  }
+  } catch (err) {
+    console.error('Erreur MessageCreate (serveur):', err);
+    try {
+      await message.reply({
+        embeds: [createEmbed('error', {
+          title: 'Erreur',
+          description: 'Une erreur s\'est produite. Le bot a peut-être crashé — redémarre-le si le problème persiste.',
+        })],
+      }).catch(() => {});
+    } catch {}
   }
 });
 

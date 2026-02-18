@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { E } from '../utils/emojis.js';
+import { getE } from '../utils/emojis.js';
 import { sendLog } from '../utils/logs.js';
 
 export default {
@@ -8,6 +8,7 @@ export default {
     description: 'Cache tous les salons d\'une catégorie',
   },
   execute: async (message, args) => {
+    const e = getE(message.guild);
     if (!message.member.permissions.has('ManageChannels')) {
       const errorEmbed = createEmbed('error', {
         title: 'Permission refusée',
@@ -76,8 +77,8 @@ export default {
 
       const fields = [
         {
-          name: `${E.stats} Résultats`,
-          value: `${E.success} Cachés: ${hiddenCount}\n${E.error} Échoués: ${failedCount}`,
+          name: `${e.stats} Résultats`,
+          value: `${e.success} Cachés: ${hiddenCount}\n${e.error} Échoués: ${failedCount}`,
           inline: true,
         },
         {

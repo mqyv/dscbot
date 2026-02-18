@@ -1,5 +1,5 @@
 import { createEmbed } from './embeds.js';
-import { E } from './emojis.js';
+import { getE } from './emojis.js';
 import { getGuildData } from './database.js';
 import { formatBleedDate } from './embeds.js';
 
@@ -52,7 +52,7 @@ export async function sendLog(guild, logType, data) {
         fields: [
           { name: '👤 Membre', value: `${data.target} (${data.target.id})`, inline: true },
           { name: '👮 Modérateur', value: `${data.moderator}`, inline: true },
-          { name: `${E.notes} Raison`, value: data.reason || 'Aucune raison', inline: false },
+          { name: `${getE(guild).notes} Raison`, value: data.reason || 'Aucune raison', inline: false },
         ],
         timestamp: true,
       });
@@ -64,7 +64,7 @@ export async function sendLog(guild, logType, data) {
         description: `Message supprimé dans ${data.channel}`,
         fields: [
           { name: '👤 Auteur', value: `${data.author} (${data.author.id})`, inline: true },
-          { name: `${E.notes} Contenu`, value: data.content?.substring(0, 1024) || 'Aucun contenu', inline: false },
+          { name: `${getE(guild).notes} Contenu`, value: data.content?.substring(0, 1024) || 'Aucun contenu', inline: false },
         ],
         timestamp: true,
       });
@@ -72,7 +72,7 @@ export async function sendLog(guild, logType, data) {
 
     case 'nickname':
       embed = createEmbed('info', {
-        title: `${E.notes} Surnom modifié`,
+        title: `${getE(guild).notes} Surnom modifié`,
         description: `${data.member} a changé de surnom`,
         fields: [
           { name: '👤 Membre', value: `${data.member}`, inline: true },

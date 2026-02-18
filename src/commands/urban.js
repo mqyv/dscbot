@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { E } from '../utils/emojis.js';
+import { getE } from '../utils/emojis.js';
 
 export default {
   data: {
@@ -7,6 +7,7 @@ export default {
     description: 'Chercher une définition sur Urban Dictionary',
   },
   execute: async (message, args) => {
+    const e = getE(message.guild);
     const term = args.join(' ').trim();
     if (!term) {
       const errorEmbed = createEmbed('error', {
@@ -31,15 +32,15 @@ export default {
       const example = (def.example || '').slice(0, 500);
 
       const embed = createEmbed('default', {
-        title: `${E.book} ${def.word}`,
+        title: `${e.book} ${def.word}`,
         description: definition,
         fields: example ? [{ name: 'Exemple', value: example, inline: false }] : [],
         footer: { text: `👍 ${def.thumbs_up} | 👎 ${def.thumbs_down} | Par ${def.author}` },
       });
 
       message.reply({ embeds: [embed] });
-    } catch (e) {
-      console.error('Urban API:', e);
+    } catch (err) {
+      console.error('Urban API:', err);
       message.reply({
         embeds: [createEmbed('error', { title: 'Erreur', description: 'Impossible de contacter Urban Dictionary.' })],
       });

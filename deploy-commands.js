@@ -43,14 +43,14 @@ const COMMAND_OPTIONS = {
     .addStringOption(o => o.setName('nickname').setDescription('Surnom sur le serveur').setRequired(false)),
 };
 
-// Seule /ai est déployée en slash - le reste utilise le préfixe (,)
-const SLASH_COMMANDS = ['ai'];
+// Commandes slash déployées
+const SLASH_COMMANDS = ['ai', 'vouch'];
 
 const commands = [];
 const commandsPath = join(__dirname, 'src', 'commands');
 const commandFiles = readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
-console.log('Chargement des commandes slash (uniquement /ai)...');
+console.log('Chargement des commandes slash (/ai, /vouch)...');
 
 for (const file of commandFiles) {
   const filePath = join(commandsPath, file);

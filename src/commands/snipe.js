@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { E } from '../utils/emojis.js';
+import { getE } from '../utils/emojis.js';
 import { getSnipe } from '../utils/snipes.js';
 
 export default {
@@ -8,6 +8,7 @@ export default {
     description: 'Voir le dernier message supprimé dans ce salon',
   },
   execute: async (message, args) => {
+    const e = getE(message.guild);
     const snipe = getSnipe(message.channel.id);
 
     if (!snipe) {
@@ -28,7 +29,7 @@ export default {
           inline: true,
         },
         {
-          name: `${E.reminder} Supprimé`,
+          name: `${e.reminder} Supprimé`,
           value: `<t:${Math.floor(snipe.createdAt.getTime() / 1000)}:R>`,
           inline: true,
         },

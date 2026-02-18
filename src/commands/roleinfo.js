@@ -1,5 +1,5 @@
 import { createEmbed, formatBleedDate, getTimeAgo } from '../utils/embeds.js';
-import { E } from '../utils/emojis.js';
+import { getE } from '../utils/emojis.js';
 
 export default {
   data: {
@@ -7,6 +7,7 @@ export default {
     description: 'Affiche les informations sur un rôle',
   },
   execute: async (message, args) => {
+    const e = getE(message.guild);
     if (!args[0]) {
       const errorEmbed = createEmbed('error', {
         title: 'Erreur',
@@ -49,12 +50,12 @@ export default {
           inline: true,
         },
         {
-          name: `${E.stats} Position`,
+          name: `${e.stats} Position`,
           value: `${role.position}`,
           inline: true,
         },
         {
-          name: `${E.success} Permissions`,
+          name: `${e.success} Permissions`,
           value: role.permissions.toArray().slice(0, 10).join(', ') || 'Aucune',
           inline: false,
         },

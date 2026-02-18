@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { E } from '../utils/emojis.js';
+import { getE } from '../utils/emojis.js';
 
 export default {
   data: {
@@ -7,6 +7,7 @@ export default {
     description: 'Génère un nombre aléatoire',
   },
   execute: async (message, args) => {
+    const e = getE(message.guild);
     let min = 1;
     let max = 100;
 
@@ -33,7 +34,7 @@ export default {
 
     if (min >= max) {
       const errorEmbed = createEmbed('error', {
-        title: `${E.error} Erreur`,
+        title: `${e.error} Erreur`,
         description: 'Le minimum doit être inférieur au maximum.',
       });
       return message.reply({ embeds: [errorEmbed] });

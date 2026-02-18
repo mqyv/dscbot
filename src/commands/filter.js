@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { E } from '../utils/emojis.js';
+import { getE } from '../utils/emojis.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
 
 export default {
@@ -151,7 +151,7 @@ async function filterList(message) {
 async function filterReset(message) {
   if (!message.member.permissions.has('ManageGuild')) {
     const errorEmbed = createEmbed('error', {
-      title: `${E.error} Permission refusée`,
+      title: `${getE(message.guild).error} Permission refusée`,
       description: 'Vous devez avoir la permission "Gérer le serveur".',
     });
     return message.reply({ embeds: [errorEmbed] });

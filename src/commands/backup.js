@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { E } from '../utils/emojis.js';
+import { getE } from '../utils/emojis.js';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { ChannelType } from 'discord.js';
@@ -109,6 +109,7 @@ export default {
 
 async function backupCreate(message, args) {
   const guild = message.guild;
+  const e = getE(guild);
   const includeMessages = ['oui', 'yes', 'true', '1'].includes((args[0] || 'non').toLowerCase());
   const durationStr = args[1] || '7j';
   const durationMs = parseDuration(durationStr) || 7 * 24 * 60 * 60 * 1000;
@@ -116,7 +117,7 @@ async function backupCreate(message, args) {
 
   const loadingMsg = await message.reply({
     embeds: [createEmbed('info', {
-      title: `${E.loading} Sauvegarde en cours...`,
+      title: `${e.loading} Sauvegarde en cours...`,
       description: 'Collecte des données du serveur...',
     })],
   });
@@ -209,7 +210,7 @@ async function backupCreate(message, args) {
     if (includeMessages) {
       await loadingMsg.edit({
         embeds: [createEmbed('info', {
-        title: `${E.loading} Sauvegarde en cours...`,
+        title: `${e.loading} Sauvegarde en cours...`,
         description: `Récupération des messages (${durationStr} en arrière)...`,
         })],
       });
@@ -268,6 +269,7 @@ async function backupCreate(message, args) {
 
 async function backupRestore(message, args) {
   const guild = message.guild;
+  const e = getE(guild);
   const attachment = message.attachments?.first();
 
   if (!attachment || !attachment.name?.endsWith('.json')) {
@@ -281,7 +283,7 @@ async function backupRestore(message, args) {
 
   const loadingMsg = await message.reply({
     embeds: [createEmbed('info', {
-      title: `${E.loading} Restauration en cours...`,
+      title: `${e.loading} Restauration en cours...`,
       description: 'Téléchargement et analyse du backup...',
     })],
   });
@@ -300,7 +302,7 @@ async function backupRestore(message, args) {
     // 1. Créer les rôles
     await loadingMsg.edit({
       embeds: [createEmbed('info', {
-        title: `${E.loading} Restauration...`,
+        title: `${e.loading} Restauration...`,
         description: 'Création des rôles...',
       })],
     });
@@ -387,7 +389,7 @@ async function backupRestore(message, args) {
     // 4. Emojis
     await loadingMsg.edit({
       embeds: [createEmbed('info', {
-        title: `${E.loading} Restauration...`,
+        title: `${e.loading} Restauration...`,
         description: 'Ajout des emojis...',
       })],
     });
@@ -411,7 +413,7 @@ async function backupRestore(message, args) {
     if (json.messages && typeof json.messages === 'object') {
       await loadingMsg.edit({
         embeds: [createEmbed('info', {
-          title: `${E.loading} Restauration...`,
+          title: `${e.loading} Restauration...`,
           description: 'Restauration des messages...',
         })],
       });

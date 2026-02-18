@@ -1,5 +1,5 @@
 import { createEmbed, formatBleedDate, getTimeAgo } from '../utils/embeds.js';
-import { E } from '../utils/emojis.js';
+import { getE } from '../utils/emojis.js';
 import { version } from 'discord.js';
 import { getGuildData } from '../utils/database.js';
 
@@ -9,6 +9,7 @@ export default {
     description: 'Affiche les informations sur le bot',
   },
   execute: async (message, args) => {
+    const e = getE(message.guild);
     const client = message.client;
     const uptime = process.uptime();
     const days = Math.floor(uptime / 86400);
@@ -31,7 +32,7 @@ export default {
           inline: true,
         },
         {
-          name: `${E.notes} Surnom`,
+          name: `${e.notes} Surnom`,
           value: member?.nickname || 'Aucun',
           inline: true,
         },
@@ -46,7 +47,7 @@ export default {
           inline: true,
         },
         {
-          name: `${E.stats} Statistiques`,
+          name: `${e.stats} Statistiques`,
           value: [
             `Serveurs: ${client.guilds.cache.size}`,
             `Utilisateurs: ${client.users.cache.size}`,

@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { E } from '../utils/emojis.js';
+import { getE } from '../utils/emojis.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
 
 export default {
@@ -42,6 +42,7 @@ export default {
 };
 
 async function settingsConfig(message) {
+  const e = getE(message.guild);
   const guildData = getGuildData(message.guild.id);
   const settings = guildData.settings || {};
 
@@ -50,7 +51,7 @@ async function settingsConfig(message) {
     description: `Configuration actuelle pour **${message.guild.name}**`,
     fields: [
       {
-        name: `${E.notes} Préfixe`,
+        name: `${e.notes} Préfixe`,
         value: `\`${guildData.prefix}\``,
         inline: true,
       },
@@ -203,9 +204,10 @@ async function settingsStaff(message, args) {
 }
 
 async function settingsReset(message) {
+  const e = getE(message.guild);
   if (!message.member.permissions.has('Administrator')) {
     const errorEmbed = createEmbed('error', {
-      title: `${E.error} Permission refusée`,
+      title: `${e.error} Permission refusée`,
       description: 'Vous devez être administrateur pour réinitialiser la configuration.',
     });
     return message.reply({ embeds: [errorEmbed] });

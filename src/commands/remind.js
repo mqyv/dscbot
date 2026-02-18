@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { E } from '../utils/emojis.js';
+import { getE } from '../utils/emojis.js';
 import { getPrefix } from '../utils/database.js';
 
 const reminders = new Map(); // userId -> [{ id, timeout, message }]
@@ -19,10 +19,11 @@ export default {
     description: 'Programmer un rappel (MP ou serveur)',
   },
   execute: async (message, args) => {
+    const e = getE(message.guild);
     if (!args.length) {
       const prefix = getPrefix(message.guild?.id, message.author.id);
       const embed = createEmbed('info', {
-        title: `${E.reminder} Rappels`,
+        title: `${e.reminder} Rappels`,
         description: `**Utilisation:** \`${prefix}remind <durée> <message>\`\n\n**Exemples:**\n\`${prefix}remind 5m Appeler maman\`\n\`${prefix}remind 1h Pause déjeuner\`\n\`${prefix}remind 30s Test\`\n\n**Formats:** s (secondes), m/min (minutes), h (heures), d (jours)`,
       });
       return message.reply({ embeds: [embed] });
@@ -51,7 +52,7 @@ export default {
     const timeout = setTimeout(async () => {
       try {
         const embed = createEmbed('success', {
-          title: `${E.reminder} Rappel !`,
+          title: `${e.reminder} Rappel !`,
           description: reminderMsg,
           footer: { text: `Programmé il y a ${durationStr}` },
         });
@@ -70,7 +71,7 @@ export default {
     reminders.set(message.author.id, userReminders);
 
     const successEmbed = createEmbed('success', {
-      title: `${E.reminder} Rappel programmé`,
+      title: `${e.reminder} Rappel programmé`,
       description: `Je te rappellerai dans **${durationStr}** :\n${reminderMsg}`,
     });
     message.reply({ embeds: [successEmbed] });

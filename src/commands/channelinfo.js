@@ -1,5 +1,5 @@
 import { createEmbed, formatBleedDate, getTimeAgo } from '../utils/embeds.js';
-import { E } from '../utils/emojis.js';
+import { getE } from '../utils/emojis.js';
 
 export default {
   data: {
@@ -7,6 +7,7 @@ export default {
     description: 'Affiche les informations sur un canal',
   },
   execute: async (message, args) => {
+    const e = getE(message.guild);
     const channel = args[0] 
       ? message.guild.channels.cache.get(args[0].replace(/[<#>]/g, '')) || message.mentions.channels.first()
       : message.channel;
@@ -33,7 +34,7 @@ export default {
           inline: false,
         },
         {
-          name: `${E.notes} Type`,
+          name: `${e.notes} Type`,
           value: getChannelType(channel.type),
           inline: true,
         },
@@ -43,7 +44,7 @@ export default {
           inline: true,
         },
         {
-          name: `${E.stats} Position`,
+          name: `${e.stats} Position`,
           value: `${channel.position}`,
           inline: true,
         },
