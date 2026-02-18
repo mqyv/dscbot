@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { getE } from '../utils/emojis.js';
+import { E } from '../utils/emojis.js';
 
 // Parse "2d6", "1d20", "4d8+3"
 function parseDice(expr) {
@@ -23,7 +23,7 @@ export default {
     description: 'Lancer des dés (ex: 2d6, 1d20, 4d8+3)',
   },
   execute: async (message, args) => {
-    const e = getE(message.guild);
+    const e = E;
     const expr = args[0] || '1d6';
     const parsed = parseDice(expr);
 

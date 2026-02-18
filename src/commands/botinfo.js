@@ -1,5 +1,5 @@
 import { createEmbed, formatBleedDate, getTimeAgo } from '../utils/embeds.js';
-import { getE } from '../utils/emojis.js';
+import { E } from '../utils/emojis.js';
 import { version } from 'discord.js';
 import { getGuildData } from '../utils/database.js';
 
@@ -9,7 +9,7 @@ export default {
     description: 'Affiche les informations sur le bot',
   },
   execute: async (message, args) => {
-    const e = getE(message.guild);
+    const e = E;
     const client = message.client;
     const uptime = process.uptime();
     const days = Math.floor(uptime / 86400);

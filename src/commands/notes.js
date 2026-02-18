@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { getE } from '../utils/emojis.js';
+import { E } from '../utils/emojis.js';
 import { getUserNotes, addUserNote, removeUserNote, getPrefix } from '../utils/database.js';
 
 export default {
@@ -8,7 +8,7 @@ export default {
     description: 'Gérer tes notes personnelles (MP ou serveur)',
   },
   execute: async (message, args, client) => {
-    const e = getE(message.guild);
+    const e = E;
     const prefix = getPrefix(message.guild?.id, message.author.id);
     const notes = getUserNotes(message.author.id);
 

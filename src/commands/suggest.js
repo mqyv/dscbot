@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { getE } from '../utils/emojis.js';
+import { E } from '../utils/emojis.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
 
 export default {
@@ -49,7 +49,7 @@ export default {
     });
 
     const suggestionMessage = await targetChannel.send({ embeds: [embed] });
-    const e = getE(message.guild);
+    const e = E;
     await suggestionMessage.react(e.success).catch(() => suggestionMessage.react('✅'));
     await suggestionMessage.react(e.error).catch(() => suggestionMessage.react('❌'));
 

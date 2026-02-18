@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { getE } from '../utils/emojis.js';
+import { E } from '../utils/emojis.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
 
 export default {
@@ -217,7 +217,7 @@ async function logsSetup(message, args) {
   }
 
   try {
-    const e = getE(message.guild);
+    const e = E;
     const loadingEmbed = createEmbed('info', {
       title: `${e.loading} Configuration des logs...`,
       description: `Création des canaux de logs dans ${category}...`,

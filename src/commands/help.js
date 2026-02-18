@@ -95,15 +95,12 @@ export default {
       'Utilitaires': ['ping', 'avatar', 'calc', 'afk', 'help', 'botinfo', 'invite'],
     };
     const SERVER_CATEGORIES = {
-      'Propriétaire': ['owner', 'customize', 'wl'],
-      'Configuration': ['prefix', 'settings', 'alias', 'ignore', 'autorole'],
-      'Booster': ['boosterrole', 'boost'],
+      'Propriétaire (owner)': ['owner', 'customize', 'wl'],
+      'WL serveur (modération, config)': ['prefix', 'settings', 'alias', 'ignore', 'autorole', 'filter', 'logs', 'kick', 'ban', 'unban', 'timeout', 'warn', 'clear', 'hide', 'unhide', 'lock', 'unlock', 'hideall', 'pin', 'unpin', 'addrole', 'delrole'],
       'Messages': ['welcome', 'goodbye', 'sticky', 'autoresponder', 'imageonly'],
-      'Filtres': ['filter'],
+      'Booster': ['boosterrole', 'boost'],
       'Informations': ['help', 'info', 'userinfo', 'profile', 'serverinfo', 'botinfo', 'channelinfo', 'roleinfo', 'invite', 'snipe', 'firstmessage', 'membercount', 'uptime'],
-      'Modération': ['kick', 'ban', 'unban', 'timeout', 'warn', 'clear', 'hide', 'unhide', 'lock', 'unlock', 'hideall', 'pin', 'unpin', 'slowmode', 'voicemove', 'addrole', 'delrole'],
       'Utilitaires': ['avatar', 'emoji', 'ping', 'say', 'poll', 'calc', 'random', 'dice', 'urban', 'embed', 'webhook', 'afk', 'remind', 'notes', 'backup', 'giveaway', 'extractemojis', 'ticket', 'renew', 'roleall', 'nuke', 'antiraid'],
-      'Logs': ['logs'],
       'Fun': ['8ball', 'coinflip', 'quote', 'suggest', 'ship', 'choose', 'roast', 'compliment', 'pp'],
       'Vouch': ['vouch'],
     };

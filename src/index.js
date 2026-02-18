@@ -4,9 +4,10 @@ import { readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createEmbed } from './utils/embeds.js';
-import { getE } from './utils/emojis.js';
+import { E } from './utils/emojis.js';
 import { getPrefix, isWhitelisted, getGuildData, saveGuildData, addPreviousName, getUserData, saveUserData } from './utils/database.js';
 import { isOwner, isMainOwner } from './utils/owners.js';
+import { getInviteCache, fetchAndCacheInvites } from './utils/invites.js';
 
 config();
 
@@ -257,24 +258,21 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 // Invites - garder le cache à jour
-client.on(Events.InviteCreate, async invite => {
-  const { getInviteCache } = await import('./utils/invites.js');
+client.on(Events.InviteCreate, invite => {
   const cache = getInviteCache(invite.guild?.id);
   if (cache) cache.set(invite.code, { uses: invite.uses || 0, inviterId: invite.inviter?.id || null });
 });
 client.on(Events.InviteDelete, invite => {
-  const { getInviteCache } = await import('./utils/invites.js');
   const cache = getInviteCache(invite.guild?.id);
   if (cache) cache.delete(invite.code);
 });
 
 // Événement : Bot rejoint un serveur
-client.on(Events.GuildCreate, async guild => {
+client.on(Events.GuildCreate, guild => {
   console.log(`\n🎉 BOT AJOUTÉ À UN SERVEUR !`);
   console.log(`   Serveur: ${guild.name} (${guild.id})`);
   console.log(`   Membres: ${guild.memberCount}`);
   console.log(`   Propriétaire: ${guild.ownerId}\n`);
-  const { fetchAndCacheInvites } = await import('./utils/invites.js');
   fetchAndCacheInvites(guild).catch(() => {});
 });
 
@@ -573,7 +571,7 @@ client.on(Events.MessageCreate, async message => {
       if (containsFilteredWord) {
         await message.delete().catch(() => {});
         const warnEmbed = createEmbed('warning', {
-          title: `${getE(message.guild).warning} Message supprimé`,
+          title: `${E.warning} Message supprimé`,
           description: `${message.author}, votre message contient un mot filtré.`,
         });
         const warningMsg = await message.channel.send({ embeds: [warnEmbed] });

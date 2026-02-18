@@ -2,7 +2,7 @@ import { getGuildData } from './database.js';
 import { GuildVerificationLevel } from 'discord.js';
 import { sendLog } from './logs.js';
 import { createEmbed } from './embeds.js';
-import { getE } from './emojis.js';
+import { E } from './emojis.js';
 
 /** Cache des joins par serveur */
 const joinCache = new Map();
@@ -70,7 +70,7 @@ async function sendAlert(guild, cfg, data) {
   const channel = guild.channels.cache.get(channelId);
   if (!channel?.isTextBased()) return;
 
-  const e = getE(guild);
+  const e = E;
   const embed = createEmbed('warning', {
     title: `${e.warning} Alerte Antiraid`,
     description: data.description,
@@ -106,7 +106,7 @@ export async function checkAntiraid(member) {
   if (data.joins.length < threshold) return false;
 
   const reason = cfg.customReason || 'Antiraid : trop de joins en peu de temps.';
-  const e = getE(member.guild);
+  const e = E;
 
   try {
     if (action === 'kick') {

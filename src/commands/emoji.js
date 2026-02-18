@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { getE } from '../utils/emojis.js';
+import { E } from '../utils/emojis.js';
 
 const EMOJI_REGEX = /<a?:(\w+):(\d+)>/g;
 
@@ -208,7 +208,7 @@ async function emojiCopyFromInput(message, args) {
   const toProcessEmojis = emojiInputs.slice(0, emojiSlots);
   const toProcessStickers = msgStickers.slice(0, stickerSlots);
   const total = toProcessEmojis.length + toProcessStickers.length;
-  const e = getE(guild);
+  const e = E;
 
   if (total === 0) {
     return message.reply({

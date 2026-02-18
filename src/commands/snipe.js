@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { getE } from '../utils/emojis.js';
+import { E } from '../utils/emojis.js';
 import { getSnipe } from '../utils/snipes.js';
 
 export default {
@@ -8,7 +8,7 @@ export default {
     description: 'Voir le dernier message supprimé dans ce salon',
   },
   execute: async (message, args) => {
-    const e = getE(message.guild);
+    const e = E;
     const snipe = getSnipe(message.channel.id);
 
     if (!snipe) {

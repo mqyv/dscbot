@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { getE } from '../utils/emojis.js';
+import { E } from '../utils/emojis.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
 
 export default {
@@ -42,7 +42,7 @@ export default {
 };
 
 async function settingsConfig(message) {
-  const e = getE(message.guild);
+  const e = E;
   const guildData = getGuildData(message.guild.id);
   const settings = guildData.settings || {};
 
@@ -204,7 +204,7 @@ async function settingsStaff(message, args) {
 }
 
 async function settingsReset(message) {
-  const e = getE(message.guild);
+  const e = E;
   if (!message.member.permissions.has('Administrator')) {
     const errorEmbed = createEmbed('error', {
       title: `${e.error} Permission refusée`,

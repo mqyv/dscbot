@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { getE } from '../utils/emojis.js';
+import { E } from '../utils/emojis.js';
 import { getPrefix } from '../utils/database.js';
 
 const reminders = new Map(); // userId -> [{ id, timeout, message }]
@@ -19,7 +19,7 @@ export default {
     description: 'Programmer un rappel (MP ou serveur)',
   },
   execute: async (message, args) => {
-    const e = getE(message.guild);
+    const e = E;
     if (!args.length) {
       const prefix = getPrefix(message.guild?.id, message.author.id);
       const embed = createEmbed('info', {

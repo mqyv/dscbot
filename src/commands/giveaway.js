@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { createEmbed } from '../utils/embeds.js';
-import { getE, E } from '../utils/emojis.js';
+import { E } from '../utils/emojis.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 
@@ -55,7 +55,7 @@ function parseHexColor(hex) {
 }
 
 function buildGiveawayEmbed(giveaway, ended = false, guild = null) {
-  const e = guild ? getE(guild) : E;
+  const e = E;
   const endDate = new Date(giveaway.endAt);
   const custom = giveaway.embed || {};
   const color = parseHexColor(custom.color) ?? (ended ? 0x57F287 : 0x5865F2);
@@ -321,7 +321,7 @@ export async function endGiveaway(client, guildId, id) {
     const channel = guild ? await guild.channels.fetch(giveaway.channelId).catch(() => null) : null;
     const msg = channel ? await channel.messages.fetch(giveaway.messageId).catch(() => null) : null;
     if (msg) {
-      const e = guild ? getE(guild) : E;
+      const e = E;
       const embed = buildGiveawayEmbed(giveaway, true, guild);
       await msg.edit({ embeds: [embed], components: [getGiveawayButton(true)] });
       if (winners.length > 0) {

@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { getE } from '../utils/emojis.js';
+import { E } from '../utils/emojis.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
 
 const DEFAULT_CONFIG = {
@@ -48,7 +48,7 @@ export default {
     const sub2 = args[1]?.toLowerCase();
     const guildData = getGuildData(message.guild.id);
     const cfg = ensureConfig(guildData, message.guild.id);
-    const e = getE(message.guild);
+    const e = E;
 
     // === ON / OFF ===
     if (subcommand === 'on' || subcommand === 'enable') {

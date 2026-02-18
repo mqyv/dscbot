@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { getE } from '../utils/emojis.js';
+import { E } from '../utils/emojis.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
 import { isMainOwner } from '../utils/owners.js';
 
@@ -170,7 +170,7 @@ async function customizeSetAll(message, args) {
       embeds: [createEmbed('error', { title: 'Erreur', description: 'Aucun paramètre fourni.' })],
     });
   }
-  const e = getE(message.guild);
+  const e = E;
   const guildData = message.guild ? getGuildData(message.guild.id) : { settings: {} };
   if (!guildData.settings) guildData.settings = {};
   const changes = [];
@@ -412,7 +412,7 @@ async function customizeNickname(message, args) {
 async function customizeUsername(message, args) {
   if (!message.member.permissions.has('Administrator')) {
     const errorEmbed = createEmbed('error', {
-      title: `${getE(message.guild).error} Permission refusée`,
+      title: `${E.error} Permission refusée`,
       description: 'Vous devez être administrateur pour modifier le nom d\'utilisateur du bot.',
     });
     return message.reply({ embeds: [errorEmbed] });
@@ -458,7 +458,7 @@ async function customizeActivity(message, args) {
   const inGuild = !!message.guild;
   if (inGuild && message.member && !message.member.permissions.has('ManageGuild')) {
     const errorEmbed = createEmbed('error', {
-      title: `${getE(message.guild).error} Permission refusée`,
+      title: `${E.error} Permission refusée`,
       description: 'Vous devez avoir la permission "Gérer le serveur".',
     });
     return message.reply({ embeds: [errorEmbed] });
@@ -563,7 +563,7 @@ async function customizeView(message) {
         inline: true,
       },
       {
-        name: `${getE(message.guild).notes} Surnom`,
+        name: `${E.notes} Surnom`,
         value: member?.nickname || 'Aucun',
         inline: true,
       },

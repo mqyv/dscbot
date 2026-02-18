@@ -1,6 +1,6 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, ChannelType, EmbedBuilder, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { createEmbed } from '../utils/embeds.js';
-import { getE } from '../utils/emojis.js';
+import { E } from '../utils/emojis.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
 
 const TEXTS = {
@@ -143,7 +143,7 @@ async function ticketMenu(message) {
   const hasTypes = Object.keys(types).length > 0;
 
   const embed = createEmbed('settings', {
-    title: `${getE(message.guild).ticket} Système de tickets`,
+    title: `${E.ticket} Système de tickets`,
     description: 'Choisissez une action ci-dessous pour configurer ou gérer les tickets.',
     fields: [
       { name: 'Configuration', value: 'Voir la config actuelle (types, rôles, langue)', inline: true },
@@ -712,7 +712,7 @@ export async function handleTicketEmbedSelect(interaction) {
     description: 'Choisissez ce que vous voulez modifier :',
     fields: [
       { name: '📋 Embed du panneau', value: 'L\'embed affiché sur le panneau', inline: true },
-      { name: `${getE(interaction.guild).ticket} Embed du ticket`, value: 'L\'embed dans chaque ticket', inline: true },
+      { name: `${E.ticket} Embed du ticket`, value: 'L\'embed dans chaque ticket', inline: true },
       { name: '🔘 Bouton', value: 'Libellé et emoji', inline: true },
       { name: '👮 Rôle support', value: 'Rôle mentionné à l\'ouverture', inline: true },
       { name: '✏️ Texte support', value: `Texte remplaçant "Le staff" : ${supportTextPreview}`, inline: true },
@@ -961,7 +961,7 @@ async function ticketSetup(message, args) {
 
   const firstType = types[typesToShow[0]];
   const panelEmbed = firstType.panelEmbed || DEFAULT_PANEL_EMBED;
-  const embed = buildEmbedFromConfig(panelEmbed, { ticket_emoji: getE(message.guild).ticket });
+  const embed = buildEmbedFromConfig(panelEmbed, { ticket_emoji: E.ticket });
 
   const rows = [];
   let currentRow = new ActionRowBuilder();
@@ -1013,7 +1013,7 @@ async function ticketClose(message) {
   }
 
   const t = getTicketLang(guildData);
-  const vars = { user: message.author.toString(), username: message.author.tag, ticket_emoji: getE(message.guild).ticket };
+  const vars = { user: message.author.toString(), username: message.author.tag, ticket_emoji: E.ticket };
   const ce = config.closeEmbed;
   let embed;
   if (ce && (ce.title || ce.description)) {
@@ -1177,7 +1177,7 @@ export async function handleTicketCreate(interaction) {
     support: supportMention,
     server: interaction.guild.name,
     ticketnumber: ticketNumber,
-    ticket_emoji: getE(interaction.guild).ticket,
+    ticket_emoji: E.ticket,
   };
 
   const ticketEmbedConfig = config.ticketEmbed || DEFAULT_TICKET_EMBED;
@@ -1229,7 +1229,7 @@ export async function handleTicketClose(interaction) {
     return interaction.reply({ content: t.onlyStaffClose, ephemeral: true });
   }
 
-  const vars = { user: interaction.user.toString(), username: interaction.user.tag, ticket_emoji: getE(interaction.guild).ticket };
+  const vars = { user: interaction.user.toString(), username: interaction.user.tag, ticket_emoji: E.ticket };
   const ce = config.closeEmbed;
   let embed;
   if (ce && (ce.title || ce.description)) {

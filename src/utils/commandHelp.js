@@ -355,14 +355,17 @@ export const commandHelp = {
   },
 
   invite: {
-    description: 'Obtenir le lien d\'invitation du bot',
+    description: 'Stats d\'invitations ou lien du bot',
     usage: [
-      '`invite` - Afficher le lien d\'invitation',
+      '`invite @user` - Nombre d\'invitations de l\'utilisateur',
+      '`invite set #canal` - Salon des arrivées (Gérer le serveur)',
+      '`invite` - Lien d\'invitation du bot',
     ],
     examples: [
-      '`invite`',
+      '`invite @c`',
+      '`invite set #arrivées`',
     ],
-    permissions: 'Aucune',
+    permissions: 'Gérer le serveur (pour set)',
   },
 
   renew: {

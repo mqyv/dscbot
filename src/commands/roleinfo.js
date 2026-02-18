@@ -1,5 +1,5 @@
 import { createEmbed, formatBleedDate, getTimeAgo } from '../utils/embeds.js';
-import { getE } from '../utils/emojis.js';
+import { E } from '../utils/emojis.js';
 
 export default {
   data: {
@@ -7,7 +7,7 @@ export default {
     description: 'Affiche les informations sur un rôle',
   },
   execute: async (message, args) => {
-    const e = getE(message.guild);
+    const e = E;
     if (!args[0]) {
       const errorEmbed = createEmbed('error', {
         title: 'Erreur',

@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { getE } from '../utils/emojis.js';
+import { E } from '../utils/emojis.js';
 
 export default {
   data: {
@@ -7,7 +7,7 @@ export default {
     description: 'Génère un nombre aléatoire',
   },
   execute: async (message, args) => {
-    const e = getE(message.guild);
+    const e = E;
     let min = 1;
     let max = 100;
 

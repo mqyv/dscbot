@@ -1,5 +1,5 @@
 import { createEmbed, formatBleedDate, getTimeAgo } from '../utils/embeds.js';
-import { getE } from '../utils/emojis.js';
+import { E } from '../utils/emojis.js';
 
 export default {
   data: {
@@ -7,7 +7,7 @@ export default {
     description: 'Affiche les informations sur le serveur',
   },
   execute: async (message) => {
-    const e = getE(message.guild);
+    const e = E;
     const guild = message.guild;
     const owner = await guild.fetchOwner();
 

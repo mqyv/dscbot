@@ -1,5 +1,5 @@
 import { createEmbed } from '../utils/embeds.js';
-import { getE } from '../utils/emojis.js';
+import { E } from '../utils/emojis.js';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { ChannelType } from 'discord.js';
@@ -109,7 +109,7 @@ export default {
 
 async function backupCreate(message, args) {
   const guild = message.guild;
-  const e = getE(guild);
+  const e = E;
   const includeMessages = ['oui', 'yes', 'true', '1'].includes((args[0] || 'non').toLowerCase());
   const durationStr = args[1] || '7j';
   const durationMs = parseDuration(durationStr) || 7 * 24 * 60 * 60 * 1000;
@@ -269,7 +269,7 @@ async function backupCreate(message, args) {
 
 async function backupRestore(message, args) {
   const guild = message.guild;
-  const e = getE(guild);
+  const e = E;
   const attachment = message.attachments?.first();
 
   if (!attachment || !attachment.name?.endsWith('.json')) {

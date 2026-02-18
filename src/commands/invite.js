@@ -25,6 +25,32 @@ export default {
     const sub = args[0]?.toLowerCase();
     const guildData = getGuildData(message.guild.id);
 
+    // invite @user - stats de l'utilisateur (PRIORITAIRE)
+    let target = message.mentions.users.first();
+    if (!target && args[0]) {
+      const mentionMatch = String(args[0]).match(/<@!?(\d+)>/);
+      const userId = mentionMatch ? mentionMatch[1] : args[0].replace(/[<@!>]/g, '').trim();
+      if (userId && /^\d{17,19}$/.test(userId)) {
+        target = await message.client.users.fetch(userId).catch(() => null);
+      } else if (args[0] && args[0].length <= 32) {
+        const search = args[0].replace(/^@/, '').toLowerCase();
+        target = message.guild.members.cache.find(m =>
+          m.user.username.toLowerCase().includes(search) ||
+          (m.user.globalName || m.displayName || '').toLowerCase().includes(search)
+        )?.user;
+      }
+    }
+    if (target) {
+      const count = getInviteCount(message.guild.id, target.id);
+      return message.reply({
+        embeds: [createEmbed('info', {
+          title: `Invitations – ${target.username}`,
+          thumbnail: target.displayAvatarURL({ size: 256 }),
+          description: `**${target}** a invité **${count}** personne(s) sur ce serveur.`,
+        })],
+      });
+    }
+
     // invite set #canal - configurer le salon (ManageGuild)
     if (sub === 'set' || sub === 'channel') {
       if (!message.member.permissions.has('ManageGuild')) {
@@ -52,23 +78,6 @@ export default {
         embeds: [createEmbed('info', {
           title: 'Salon des invitations',
           description: current ? `Actuel: <#${current}>\n\n\`invite set #canal\` pour changer` : 'Aucun salon configuré.\n\n`invite set #canal` pour définir',
-        })],
-      });
-    }
-
-    // invite @user - stats de l'utilisateur
-    let target = message.mentions.users.first();
-    if (!target && args[0]) {
-      const id = args[0].replace(/[<@!>]/g, '');
-      target = await message.client.users.fetch(id).catch(() => null);
-    }
-    if (target) {
-      const count = getInviteCount(message.guild.id, target.id);
-      return message.reply({
-        embeds: [createEmbed('info', {
-          title: `Invitations – ${target.username}`,
-          thumbnail: target.displayAvatarURL({ size: 256 }),
-          description: `**${target}** a invité **${count}** personne(s) sur ce serveur.`,
         })],
       });
     }
