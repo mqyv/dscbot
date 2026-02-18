@@ -44,7 +44,7 @@ const COMMAND_OPTIONS = {
 };
 
 // Commandes slash déployées
-const SLASH_COMMANDS = ['ai', 'vouch'];
+const SLASH_COMMANDS = ['ai', 'vouch', 'giveaway'];
 
 const commands = [];
 const commandsPath = join(__dirname, 'src', 'commands');

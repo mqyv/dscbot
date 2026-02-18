@@ -235,7 +235,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
   try {
     // Commandes slash avec logique interaction directe
-    if (commandName === 'ai' || commandName === 'vouch') {
+    if (commandName === 'ai' || commandName === 'vouch' || commandName === 'giveaway') {
       await command.execute(interaction, [], client);
     } else {
       const { messageLike, args } = buildContextFromInteraction(interaction);

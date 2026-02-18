@@ -1,11 +1,33 @@
+import { SlashCommandBuilder } from 'discord.js';
 import { createEmbed } from '../utils/embeds.js';
 import { getE, E } from '../utils/emojis.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 
-/**
- * Parse une durée (ex: 10m, 1h, 2d) en millisecondes
- */
+const giveawaySlashData = new SlashCommandBuilder()
+  .setName('giveaway')
+  .setDescription('Gérer les giveaways (cadeaux)')
+  .addSubcommand(sub =>
+    sub
+      .setName('create')
+      .setDescription('Créer un giveaway avec embed personnalisable')
+      .addStringOption(o => o.setName('prix').setDescription('Prix à gagner').setRequired(true))
+      .addStringOption(o => o.setName('duree').setDescription('Durée (ex: 10m, 1h, 24d)').setRequired(true))
+      .addIntegerOption(o => o.setName('gagnants').setDescription('Nombre de gagnants (1-20)').setRequired(true).setMinValue(1).setMaxValue(20))
+      .addChannelOption(o => o.setName('canal').setDescription('Salon où envoyer (défaut: actuel)').setRequired(false))
+      .addStringOption(o => o.setName('titre').setDescription('Titre de l\'embed').setRequired(false))
+      .addStringOption(o => o.setName('description').setDescription('Description de l\'embed').setRequired(false))
+      .addStringOption(o => o.setName('couleur').setDescription('Couleur hex (ex: 5865F2)').setRequired(false))
+      .addRoleOption(o => o.setName('role').setDescription('Rôle requis pour participer').setRequired(false))
+  )
+  .addSubcommand(sub =>
+    sub.setName('end').setDescription('Terminer un giveaway').addStringOption(o => o.setName('id').setDescription('ID du giveaway').setRequired(true))
+  )
+  .addSubcommand(sub =>
+    sub.setName('reroll').setDescription('Relancer les gagnants').addStringOption(o => o.setName('id').setDescription('ID du giveaway').setRequired(true))
+  )
+  .addSubcommand(sub => sub.setName('list').setDescription('Liste des giveaways actifs'));
+
 function parseDuration(str) {
   const match = str.match(/^(\d+)(s|m|h|d|j)$/i);
   if (!match) return null;
@@ -57,13 +79,18 @@ function buildGiveawayEmbed(giveaway, ended = false, guild = null) {
     ? `**${giveaway.prize}**\n\nFélicitations aux gagnants !`
     : `**${giveaway.prize}**\n\nCliquez sur le bouton pour participer !`);
 
-  return new EmbedBuilder()
+  const embed = new EmbedBuilder()
     .setColor(color)
     .setTitle(title)
     .setDescription(description)
     .addFields(fields)
     .setFooter({ text: `Organisé par ${giveaway.hostTag || 'Inconnu'} • ID: ${giveaway.id}` })
     .setTimestamp();
+
+  if (custom.thumbnail) embed.setThumbnail(custom.thumbnail);
+  if (custom.image) embed.setImage(custom.image);
+
+  return embed;
 }
 
 function getGiveawayButton(ended) {
@@ -76,325 +103,156 @@ function getGiveawayButton(ended) {
   );
 }
 
-/** Parse les args de create : prize, duration, winners + options --channel, --title, --desc, --color, --role */
-function parseCreateArgs(args) {
-  const result = { prize: null, durationMs: null, winnersCount: null, channel: null, embed: {}, requiredRoles: [] };
-  if (args.length < 3) return result;
-
-  result.prize = args[0];
-  result.durationMs = parseDuration(args[1]);
-  result.winnersCount = parseInt(args[2], 10);
-
-  let i = 3;
-  const takeUntilNextFlag = (start) => {
-    const parts = [];
-    for (let j = start; j < args.length; j++) {
-      if (args[j].startsWith('--')) break;
-      parts.push(args[j]);
-    }
-    return { value: parts.join(' ').replace(/^["']|["']$/g, ''), consumed: parts.length };
-  };
-
-  while (i < args.length) {
-    const a = args[i];
-    if (a === '--channel' && args[i + 1]) {
-      result.channel = args[i + 1].replace(/[<#>]/g, '');
-      i += 2;
-      continue;
-    }
-    if (a === '--title') {
-      const { value, consumed } = takeUntilNextFlag(i + 1);
-      result.embed.title = value || null;
-      i += 1 + consumed;
-      continue;
-    }
-    if (a === '--desc') {
-      const { value, consumed } = takeUntilNextFlag(i + 1);
-      result.embed.description = value || null;
-      i += 1 + consumed;
-      continue;
-    }
-    if (a === '--color' && args[i + 1]) {
-      result.embed.color = args[i + 1];
-      i += 2;
-      continue;
-    }
-    if (a === '--role' && args[i + 1]) {
-      const roleId = args[i + 1].replace(/[<@&>]/g, '');
-      if (roleId) result.requiredRoles.push(roleId);
-      i += 2;
-      continue;
-    }
-    if (a.match(/^<#\d+>$/)) {
-      result.channel = a.replace(/[<#>]/g, '');
-    }
-    i++;
-  }
-  return result;
-}
-
 export default {
-  data: {
-    name: 'giveaway',
-    description: 'Gérer les giveaways (cadeaux)',
-  },
-  execute: async (message, args) => {
-    if (!message.member.permissions.has('ManageGuild')) {
-      return message.reply({
-        embeds: [createEmbed('error', {
-          title: 'Permission refusée',
-          description: 'Vous devez avoir "Gérer le serveur".',
+  data: giveawaySlashData,
+  execute: async (interaction) => {
+    if (!interaction.isChatInputCommand?.()) {
+      return interaction.reply({
+        embeds: [createEmbed('info', { title: 'Giveaway', description: 'Utilisez **/giveaway create**, **/giveaway end**, **/giveaway reroll**, **/giveaway list**' })],
+      }).catch(() => {});
+    }
+    if (!interaction.member?.permissions?.has('ManageGuild')) {
+      return interaction.reply({
+        embeds: [createEmbed('error', { title: 'Permission refusée', description: 'Vous devez avoir "Gérer le serveur".' })],
+        ephemeral: true,
+      });
+    }
+
+    const sub = interaction.options.getSubcommand();
+
+    if (sub === 'create') {
+      await interaction.deferReply({ ephemeral: true });
+      const prize = interaction.options.getString('prix');
+      const durationMs = parseDuration(interaction.options.getString('duree'));
+      const winnersCount = interaction.options.getInteger('gagnants');
+      const channel = interaction.options.getChannel('canal') || interaction.channel;
+      const titre = interaction.options.getString('titre');
+      const description = interaction.options.getString('description');
+      const couleur = interaction.options.getString('couleur');
+      const role = interaction.options.getRole('role');
+
+      if (!durationMs || durationMs < 60000) {
+        return interaction.editReply({
+          embeds: [createEmbed('error', { title: 'Erreur', description: 'Durée invalide. Ex: 10m, 1h, 24d (min 1 min)' })],
+        });
+      }
+      if (!channel?.isTextBased()) {
+        return interaction.editReply({
+          embeds: [createEmbed('error', { title: 'Erreur', description: 'Canal invalide.' })],
+        });
+      }
+
+      const endAt = Date.now() + durationMs;
+      const id = `gw_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+      const embedOpts = {};
+      if (titre) embedOpts.title = titre;
+      if (description) embedOpts.description = description;
+      if (couleur) embedOpts.color = couleur;
+
+      const giveaway = {
+        id,
+        channelId: channel.id,
+        hostId: interaction.user.id,
+        hostTag: interaction.user.tag,
+        prize,
+        endAt,
+        winnersCount,
+        participants: [],
+        winners: null,
+        ended: false,
+        embed: Object.keys(embedOpts).length ? embedOpts : null,
+        requiredRoles: role ? [role.id] : null,
+      };
+
+      const guildData = getGuildData(interaction.guild.id);
+      if (!guildData.giveaways) guildData.giveaways = {};
+      guildData.giveaways[id] = giveaway;
+      saveGuildData(interaction.guild.id, guildData);
+
+      const embed = buildGiveawayEmbed(giveaway, false, interaction.guild);
+      const row = getGiveawayButton(false);
+
+      const msg = await channel.send({ embeds: [embed], components: [row] });
+      giveaway.messageId = msg.id;
+      saveGuildData(interaction.guild.id, guildData);
+
+      return interaction.editReply({
+        embeds: [createEmbed('success', {
+          title: 'Giveaway créé',
+          description: `**${prize}** envoyé dans ${channel}. Fin dans ${formatDuration(durationMs)}.`,
         })],
       });
     }
 
-    const subcommand = args[0]?.toLowerCase();
-
-    if (subcommand === 'create') {
-      await giveawayCreate(message, args.slice(1));
-      return;
-    }
-    if (subcommand === 'end') {
-      await giveawayEnd(message, args.slice(1));
-      return;
-    }
-    if (subcommand === 'reroll') {
-      await giveawayReroll(message, args.slice(1));
-      return;
-    }
-    if (subcommand === 'list') {
-      await giveawayList(message);
-      return;
+    if (sub === 'end') {
+      const id = interaction.options.getString('id');
+      const guildData = getGuildData(interaction.guild.id);
+      const giveaway = guildData.giveaways?.[id];
+      if (!giveaway) {
+        return interaction.reply({
+          embeds: [createEmbed('error', { title: 'Erreur', description: 'Giveaway introuvable.' })],
+          ephemeral: true,
+        });
+      }
+      await endGiveaway(interaction.client, interaction.guild.id, id);
+      return interaction.reply({
+        embeds: [createEmbed('success', { title: 'Giveaway terminé', description: 'Le giveaway a été clôturé.' })],
+        ephemeral: true,
+      });
     }
 
-    return message.reply({
-      embeds: [createEmbed('info', {
-        title: 'Giveaway – Aide',
-        description: [
-          '**`giveaway create <prix> <durée> <gagnants>`** – Créer',
-          '• Durée: 10m, 1h, 24d',
-          '',
-          '**Options (optionnelles) :**',
-          '• `#canal` ou `--channel #canal` – Salon où envoyer',
-          '• `--title "Titre"` – Titre de l\'embed',
-          '• `--desc "Description"` – Description',
-          '• `--color 5865F2` – Couleur (hex)',
-          '• `--role @rôle` – Rôle requis pour participer (répétable)',
-          '',
-          '**Exemple :** `giveaway create Nitro 1h 1 #giveaways --role @Membre --title "🎁 Nitro Gratuit"`',
-          '',
-          '**`giveaway end <id>`** – Terminer',
-          '**`giveaway reroll <id>`** – Relancer les gagnants',
-          '**`giveaway list`** – Liste des actifs',
-        ].join('\n'),
-      })],
-    });
+    if (sub === 'reroll') {
+      const id = interaction.options.getString('id');
+      const guildData = getGuildData(interaction.guild.id);
+      const giveaway = guildData.giveaways?.[id];
+      if (!giveaway || !giveaway.ended) {
+        return interaction.reply({
+          embeds: [createEmbed('error', { title: 'Erreur', description: 'Giveaway introuvable ou pas terminé.' })],
+          ephemeral: true,
+        });
+      }
+      const participants = giveaway.participants || [];
+      if (participants.length === 0) {
+        return interaction.reply({
+          embeds: [createEmbed('error', { title: 'Erreur', description: 'Aucun participant.' })],
+          ephemeral: true,
+        });
+      }
+      const count = Math.min(giveaway.winnersCount, participants.length);
+      const shuffled = [...participants].sort(() => Math.random() - 0.5);
+      const newWinners = shuffled.slice(0, count).map(uid => `<@${uid}>`);
+      giveaway.winners = newWinners;
+      saveGuildData(interaction.guild.id, guildData);
+      try {
+        const ch = await interaction.guild.channels.fetch(giveaway.channelId).catch(() => null);
+        const m = ch ? await ch.messages.fetch(giveaway.messageId).catch(() => null) : null;
+        if (m) await m.edit({ embeds: [buildGiveawayEmbed(giveaway, true, interaction.guild)], components: [getGiveawayButton(true)] });
+      } catch {}
+      return interaction.reply({
+        embeds: [createEmbed('success', { title: 'Reroll effectué', description: `Nouveaux gagnants: ${newWinners.join(', ')}` })],
+        ephemeral: true,
+      });
+    }
+
+    if (sub === 'list') {
+      const guildData = getGuildData(interaction.guild.id);
+      const giveaways = guildData.giveaways || {};
+      const active = Object.values(giveaways).filter(g => !g.ended && g.endAt > Date.now());
+      if (active.length === 0) {
+        return interaction.reply({
+          embeds: [createEmbed('info', { title: 'Giveaways actifs', description: 'Aucun giveaway en cours.' })],
+          ephemeral: true,
+        });
+      }
+      const lines = active.map(g => `• **${g.prize}** – ID: \`${g.id}\` – Fin <t:${Math.floor(g.endAt / 1000)}:R>`);
+      return interaction.reply({
+        embeds: [createEmbed('info', { title: 'Giveaways actifs', description: lines.join('\n') })],
+        ephemeral: true,
+      });
+    }
   },
 };
-
-async function giveawayCreate(message, args) {
-  const parsed = parseCreateArgs(args);
-
-  if (!parsed.prize || !parsed.durationMs || !parsed.winnersCount) {
-    return message.reply({
-      embeds: [createEmbed('error', {
-        title: 'Erreur',
-        description: 'Usage: `giveaway create <prix> <durée> <gagnants>`\nEx: `giveaway create Nitro 1h 1`',
-      })],
-    });
-  }
-
-  if (parsed.durationMs < 60000) {
-    return message.reply({
-      embeds: [createEmbed('error', {
-        title: 'Erreur',
-        description: 'Durée min 1 minute (10m, 1h, 24d)',
-      })],
-    });
-  }
-  if (parsed.winnersCount < 1 || parsed.winnersCount > 20) {
-    return message.reply({
-      embeds: [createEmbed('error', {
-        title: 'Erreur',
-        description: 'Gagnants: 1-20',
-      })],
-    });
-  }
-
-  const targetChannel = parsed.channel
-    ? message.guild.channels.cache.get(parsed.channel)
-    : message.channel;
-  if (!targetChannel?.isTextBased()) {
-    return message.reply({
-      embeds: [createEmbed('error', {
-        title: 'Erreur',
-        description: 'Canal invalide ou inaccessible.',
-      })],
-    });
-  }
-
-  const endAt = Date.now() + parsed.durationMs;
-  const id = `gw_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-  const embedOpts = {};
-  if (parsed.embed.title) embedOpts.title = parsed.embed.title;
-  if (parsed.embed.description) embedOpts.description = parsed.embed.description;
-  if (parsed.embed.color) embedOpts.color = parsed.embed.color;
-
-  const giveaway = {
-    id,
-    channelId: targetChannel.id,
-    hostId: message.author.id,
-    hostTag: message.author.tag,
-    prize: parsed.prize,
-    endAt,
-    winnersCount: parsed.winnersCount,
-    participants: [],
-    winners: null,
-    ended: false,
-    embed: Object.keys(embedOpts).length ? embedOpts : null,
-    requiredRoles: parsed.requiredRoles.length ? parsed.requiredRoles : null,
-  };
-
-  const guildData = getGuildData(message.guild.id);
-  if (!guildData.giveaways) guildData.giveaways = {};
-  guildData.giveaways[id] = giveaway;
-  saveGuildData(message.guild.id, guildData);
-
-  const embed = buildGiveawayEmbed(giveaway, false, message.guild);
-  const row = getGiveawayButton(false);
-
-  const giveawayMsg = await targetChannel.send({
-    embeds: [embed],
-    components: [row],
-  });
-
-  giveaway.messageId = giveawayMsg.id;
-  saveGuildData(message.guild.id, guildData);
-
-  await message.reply({
-    embeds: [createEmbed('success', {
-      title: 'Giveaway créé',
-      description: `**${parsed.prize}** envoyé dans ${targetChannel}. Fin dans ${formatDuration(parsed.durationMs)}.`,
-    })],
-  });
-}
-
-async function giveawayEnd(message, args) {
-  const id = args[0];
-  if (!id) {
-    return message.reply({
-      embeds: [createEmbed('error', {
-        title: 'Erreur',
-        description: 'Usage: `giveaway end <id>`',
-      })],
-    });
-  }
-
-  const guildData = getGuildData(message.guild.id);
-  const giveaway = guildData.giveaways?.[id];
-
-  if (!giveaway) {
-    return message.reply({
-      embeds: [createEmbed('error', {
-        title: 'Erreur',
-        description: 'Giveaway introuvable.',
-      })],
-    });
-  }
-
-  await endGiveaway(message.client, message.guild.id, id);
-  await message.reply({
-    embeds: [createEmbed('success', {
-      title: 'Giveaway terminé',
-      description: 'Le giveaway a été clôturé.',
-    })],
-  });
-}
-
-async function giveawayReroll(message, args) {
-  const id = args[0];
-  if (!id) {
-    return message.reply({
-      embeds: [createEmbed('error', {
-        title: 'Erreur',
-        description: 'Usage: `giveaway reroll <id>`',
-      })],
-    });
-  }
-
-  const guildData = getGuildData(message.guild.id);
-  const giveaway = guildData.giveaways?.[id];
-
-  if (!giveaway || !giveaway.ended) {
-    return message.reply({
-      embeds: [createEmbed('error', {
-        title: 'Erreur',
-        description: 'Giveaway introuvable ou pas terminé.',
-      })],
-    });
-  }
-
-  const participants = giveaway.participants || [];
-  if (participants.length === 0) {
-    return message.reply({
-      embeds: [createEmbed('error', {
-        title: 'Erreur',
-        description: 'Aucun participant.',
-      })],
-    });
-  }
-
-  const count = Math.min(giveaway.winnersCount, participants.length);
-  const shuffled = [...participants].sort(() => Math.random() - 0.5);
-  const newWinners = shuffled.slice(0, count).map(uid => `<@${uid}>`);
-
-  giveaway.winners = newWinners;
-  saveGuildData(message.guild.id, guildData);
-
-  try {
-    const channel = await message.guild.channels.fetch(giveaway.channelId).catch(() => null);
-    const msg = channel ? await channel.messages.fetch(giveaway.messageId).catch(() => null) : null;
-    if (msg) {
-      const embed = buildGiveawayEmbed(giveaway, true, message.guild);
-      await msg.edit({ embeds: [embed], components: [getGiveawayButton(true)] });
-    }
-  } catch {}
-
-  await message.reply({
-    embeds: [createEmbed('success', {
-      title: 'Reroll effectué',
-      description: `Nouveaux gagnants: ${newWinners.join(', ')}`,
-    })],
-  });
-}
-
-async function giveawayList(message) {
-  const guildData = getGuildData(message.guild.id);
-  const giveaways = guildData.giveaways || {};
-  const active = Object.values(giveaways).filter(g => !g.ended && g.endAt > Date.now());
-
-  if (active.length === 0) {
-    return message.reply({
-      embeds: [createEmbed('info', {
-        title: 'Giveaways actifs',
-        description: 'Aucun giveaway en cours.',
-      })],
-    });
-  }
-
-  const lines = active.map(g => {
-    const end = `<t:${Math.floor(g.endAt / 1000)}:R>`;
-    return `• **${g.prize}** – ID: \`${g.id}\` – Fin ${end}`;
-  });
-
-  return message.reply({
-    embeds: [createEmbed('info', {
-      title: 'Giveaways actifs',
-      description: lines.join('\n'),
-    })],
-  });
-}
 
 export async function handleGiveawayButton(interaction) {
   if (interaction.customId !== 'giveaway_join') return false;
@@ -413,17 +271,13 @@ export async function handleGiveawayButton(interaction) {
     return true;
   }
 
-  // Vérifier les conditions (rôles requis)
   const requiredRoles = giveaway.requiredRoles || [];
   if (requiredRoles.length > 0) {
     const memberRoles = interaction.member?.roles?.cache;
     const hasRole = requiredRoles.some(roleId => memberRoles?.has(roleId));
     if (!hasRole) {
       const rolesStr = requiredRoles.map(r => `<@&${r}>`).join(', ');
-      await interaction.reply({
-        content: `Vous devez avoir le rôle ${rolesStr} pour participer.`,
-        ephemeral: true,
-      });
+      await interaction.reply({ content: `Vous devez avoir le rôle ${rolesStr} pour participer.`, ephemeral: true });
       return true;
     }
   }

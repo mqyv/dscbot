@@ -61,30 +61,34 @@ async function vouchAdd(ctx, target, product, price, stars, reason) {
     authorId: ctx.author.id,
     authorTag: ctx.author.tag,
     targetId: target.id,
-    product: product || 'Non spécifié',
-    price: price || '—',
+    product: product || null,
+    price: price || null,
     stars: Math.min(5, Math.max(1, stars || 5)),
-    reason: reason || 'Aucune raison fournie.',
-    comment: reason || 'Aucune raison fournie.',
+    reason: reason || null,
+    comment: reason || null,
     createdAt: new Date().toISOString(),
   };
   vouches[target.id].push(vouch);
   saveVouches(ctx.guild.id, vouches);
   const starStr = '★'.repeat(vouch.stars) + '☆'.repeat(5 - vouch.stars);
+
+  const fields = [];
+  if (vouch.product) fields.push({ name: '🛒 Product', value: vouch.product, inline: true });
+  if (vouch.price) fields.push({ name: '💰 Price', value: vouch.price, inline: true });
+  fields.push(
+    { name: '👤 Seller', value: target.toString(), inline: true },
+    { name: '⭐ Rating', value: starStr, inline: true },
+    { name: '🔍 Vouched By', value: ctx.author.toString(), inline: true },
+    { name: '🔗 Vouch ID', value: vouchId, inline: true },
+    { name: '🕐 Timestamp', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true },
+  );
+  if (vouch.reason) fields.push({ name: '💬 Reason', value: vouch.reason, inline: false });
+
   const embed = new EmbedBuilder()
     .setColor(0xFF73FA)
     .setTitle('• New Vouch Recorded!')
     .setThumbnail(target.displayAvatarURL({ size: 256 }))
-    .addFields(
-      { name: '🛒 Product', value: vouch.product, inline: true },
-      { name: '💰 Price', value: vouch.price, inline: true },
-      { name: '👤 Seller', value: target.toString(), inline: true },
-      { name: '⭐ Rating', value: starStr, inline: true },
-      { name: '💬 Reason', value: vouch.reason, inline: false },
-      { name: '🔍 Vouched By', value: ctx.author.toString(), inline: true },
-      { name: '🔗 Vouch ID', value: vouchId, inline: true },
-      { name: '🕐 Timestamp', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true },
-    )
+    .addFields(fields)
     .setFooter({ text: `${ctx.guild.name} • Vouches` })
     .setTimestamp();
   await ctx.channel.send({ embeds: [embed] });
@@ -181,10 +185,10 @@ export default {
       const sub = interaction.options.getSubcommand();
       if (sub === 'add') {
         return vouchAdd(ctx, interaction.options.getUser('seller'),
-          interaction.options.getString('produit') || 'Non spécifié',
-          interaction.options.getString('prix') || '—',
+          interaction.options.getString('produit') ?? null,
+          interaction.options.getString('prix') ?? null,
           interaction.options.getInteger('etoiles') ?? 5,
-          interaction.options.getString('raison') || '—');
+          interaction.options.getString('raison') ?? null);
       }
       if (sub === 'remove') return vouchRemove(ctx, interaction.options.getString('id'));
       if (sub === 'list') return vouchList(ctx, interaction.options.getUser('utilisateur') || null);
