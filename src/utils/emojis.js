@@ -1,8 +1,7 @@
 /**
- * Emojis personnalisés du serveur - à utiliser dans les embeds et messages
- * Format: <:name:id> ou <a:name:id> pour les animés
+ * Emojis personnalisés - utilisés si le serveur les possède, sinon fallback Unicode
  */
-export const E = {
+const E_CUSTOM = {
   success: '<:Emoji_Green_Stock:1473672661832826951>',
   error: '<:Emoji_Pink_Question:1473669815414554765>',
   loading: '<a:Emoji_Blue_loading:1473672628794556589>',
@@ -25,8 +24,38 @@ export const E = {
   search: '<a:Emoji_Grey_Search:1473666327976612028>',
 };
 
-/** IDs pour les réactions (suggest, etc.) */
-export const E_IDS = {
-  success: '1473672661832826951',
-  error: '1473669815414554765',
+const E_DEFAULT = {
+  success: '✅',
+  error: '❌',
+  loading: '⏳',
+  warning: '⚠️',
+  info: 'ℹ️',
+  skipped: '⏭️',
+  stats: '📊',
+  ticket: '🎫',
+  gift: '🎁',
+  celebration: '🎉',
+  lock: '🔒',
+  notes: '📝',
+  reminder: '⏰',
+  dice: '🎲',
+  book: '📖',
+  list: '📋',
+  crown: '👑',
+  boost: '⚡',
+  star: '⭐',
+  search: '🔍',
 };
+
+const EMOJI_CHECK_ID = '1473672661832826951';
+
+/** Retourne les emojis à utiliser : custom si le serveur les a, sinon Unicode */
+export function getE(guild) {
+  if (!guild?.emojis?.cache?.has(EMOJI_CHECK_ID)) {
+    return E_DEFAULT;
+  }
+  return E_CUSTOM;
+}
+
+/** Pour compatibilité : utilise les emojis par défaut (Unicode) - toujours visibles */
+export const E = E_DEFAULT;

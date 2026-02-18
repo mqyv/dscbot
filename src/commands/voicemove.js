@@ -3,7 +3,7 @@ import { createEmbed } from '../utils/embeds.js';
 export default {
   data: {
     name: 'voicemove',
-    description: 'Déplace un utilisateur ou tous les utilisateurs d\'un vocal vers un autre',
+    description: 'Déplace un utilisateur ou tous les utilisateurs en vocal du serveur vers un salon',
   },
   execute: async (message, args) => {
     if (!message.member.permissions.has('MoveMembers')) {
@@ -17,16 +17,7 @@ export default {
     const subcommand = args[0]?.toLowerCase();
 
     if (subcommand === 'all') {
-      const fromChannel = message.member.voice.channel;
       const toChannel = message.mentions.channels.first();
-
-      if (!fromChannel) {
-        const errorEmbed = createEmbed('error', {
-          title: 'Erreur',
-          description: 'Vous devez être dans un salon vocal.',
-        });
-        return message.reply({ embeds: [errorEmbed] });
-      }
 
       if (!toChannel || !toChannel.isVoiceBased()) {
         const errorEmbed = createEmbed('error', {
@@ -36,21 +27,25 @@ export default {
         return message.reply({ embeds: [errorEmbed] });
       }
 
-      const members = fromChannel.members;
       let moved = 0;
+      const voiceChannels = message.guild.channels.cache.filter(
+        c => c.isVoiceBased() && c.id !== toChannel.id
+      );
 
-      for (const [id, member] of members) {
-        try {
-          await member.voice.setChannel(toChannel);
-          moved++;
-        } catch (e) {
-          console.error(`Impossible de déplacer ${member.user.tag}:`, e);
+      for (const [, channel] of voiceChannels) {
+        for (const [, member] of channel.members) {
+          try {
+            await member.voice.setChannel(toChannel);
+            moved++;
+          } catch (e) {
+            console.error(`Impossible de déplacer ${member.user.tag}:`, e);
+          }
         }
       }
 
       const embed = createEmbed('success', {
         title: 'Membres déplacés',
-        description: `${moved} membre(s) déplacé(s) de ${fromChannel} vers ${toChannel}.`,
+        description: `${moved} membre(s) déplacé(s) vers ${toChannel}.`,
       });
 
       message.reply({ embeds: [embed] });

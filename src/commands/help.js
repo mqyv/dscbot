@@ -91,11 +91,11 @@ export default {
     const allCommands = Array.from(client.commands.values()).map(c => c.data.name).sort();
     const DM_CATEGORIES = {
       'Perso': ['remind', 'notes'],
-      'IA & Fun': ['ai', '8ball', 'coinflip', 'random', 'dice', 'urban'],
+      'IA & Fun': ['ai', '8ball', 'coinflip', 'random', 'dice', 'urban', 'ship', 'choose', 'roast', 'compliment', 'pp'],
       'Utilitaires': ['ping', 'avatar', 'calc', 'afk', 'help', 'botinfo', 'invite'],
     };
     const SERVER_CATEGORIES = {
-      'Propriétaire': ['owner', 'vip', 'customize', 'wl'],
+      'Propriétaire': ['owner', 'customize', 'wl'],
       'Configuration': ['prefix', 'settings', 'alias', 'ignore', 'autorole'],
       'Premium': ['backup', 'giveaway', 'extractemojis', 'ticket', 'renew', 'roleall', 'nuke'],
       'Booster': ['boosterrole', 'boost'],
@@ -105,7 +105,7 @@ export default {
       'Modération': ['kick', 'ban', 'unban', 'timeout', 'warn', 'clear', 'hide', 'unhide', 'lock', 'unlock', 'hideall', 'pin', 'unpin', 'slowmode', 'voicemove', 'addrole', 'delrole'],
       'Utilitaires': ['avatar', 'emoji', 'ping', 'say', 'poll', 'calc', 'random', 'dice', 'urban', 'embed', 'webhook', 'afk', 'remind', 'notes'],
       'Logs': ['logs'],
-      'Fun': ['8ball', 'coinflip', 'quote', 'suggest'],
+      'Fun': ['8ball', 'coinflip', 'quote', 'suggest', 'ship', 'choose', 'roast', 'compliment', 'pp'],
       'Vouch': ['vouch'],
     };
 

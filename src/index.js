@@ -23,7 +23,7 @@ const WL_COMMANDS = [
 // Commandes utilisables en MP (bot perso)
 const DM_COMMANDS = [
   'ai', 'ping', '8ball', 'coinflip', 'random', 'dice', 'urban', 'help', 'avatar', 'calc', 'afk',
-  'remind', 'notes', 'botinfo', 'invite'
+  'remind', 'notes', 'botinfo', 'invite', 'ship', 'choose', 'roast', 'compliment', 'pp'
 ];
 
 const __filename = fileURLToPath(import.meta.url);

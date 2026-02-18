@@ -710,31 +710,16 @@ export const commandHelp = {
     permissions: 'Propriétaire principal uniquement',
   },
 
-  vip: {
-    description: 'Gérer les abonnés VIP (owners uniquement)',
-    usage: [
-      '`vip add <@user|id>` - Ajouter un utilisateur VIP',
-      '`vip remove <@user|id>` - Retirer le statut VIP',
-      '`vip list` - Liste des utilisateurs VIP',
-      '`vip check [@user]` - Vérifier le statut VIP',
-    ],
-    examples: [
-      '`vip add @User`',
-      '`vip list`',
-    ],
-    permissions: 'Propriétaire uniquement',
-  },
-
   vouch: {
     description: 'Système de recommandations (vouches)',
     usage: [
-      '`vouch add <@user> [commentaire]` - Ajouter un vouch',
+      '`vouch add @seller | produit | prix | étoiles | raison` - Ajouter un vouch',
       '`vouch remove <id>` - Retirer votre vouch',
       '`vouch list [@user]` - Liste des vouches',
       '`vouch profile [@user]` - Profil vouch',
     ],
     examples: [
-      '`vouch add @User Très bon vendeur`',
+      '`vouch add @User | 4l tiktok | 5€ | 5 | Rapide et fiable`',
       '`vouch profile @User`',
     ],
     permissions: 'Aucune',

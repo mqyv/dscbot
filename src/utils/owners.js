@@ -11,7 +11,7 @@ export function isMainOwner(userId) {
   return userId === MAIN_OWNER_ID;
 }
 
-/** Tout owner (WL + VIP bypass, sauf customize réservé au main) */
+/** Tout owner (bypass WL sur tous les serveurs, sauf customize réservé au main) */
 export function isOwner(userId) {
   return userId === MAIN_OWNER_ID || getOwnerIds().includes(userId);
 }
