@@ -1,3 +1,4 @@
+import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
 import { createEmbed } from '../utils/embeds.js';
 import { E } from '../utils/emojis.js';
 import { getGuildData, saveGuildData } from '../utils/database.js';
@@ -29,295 +30,315 @@ function ensureConfig(guildData, guildId) {
   return cfg;
 }
 
+function buildConfigSummary(cfg) {
+  const parts = [`**${cfg.threshold}** joins en **${cfg.windowSeconds}s** → **${cfg.action}**`];
+  if (cfg.newAccountMaxDays > 0) parts.push(`Comptes < ${cfg.newAccountMaxDays}j`);
+  if (cfg.whitelistRoles?.length || cfg.whitelistUsers?.length) {
+    parts.push(`Whitelist: ${(cfg.whitelistRoles?.length || 0) + (cfg.whitelistUsers?.length || 0)}`);
+  }
+  return parts.join(' • ');
+}
+
+const antiraidSlashData = new SlashCommandBuilder()
+  .setName('antiraid')
+  .setDescription('Protéger le serveur contre les raids (joins massifs)')
+  .addSubcommand(sub => sub.setName('on').setDescription('Activer la protection antiraid'))
+  .addSubcommand(sub => sub.setName('off').setDescription('Désactiver la protection antiraid'))
+  .addSubcommand(sub =>
+    sub
+      .setName('config')
+      .setDescription('Configurer seuil, fenêtre et action')
+      .addIntegerOption(o => o.setName('seuil').setDescription('Nombre de joins déclenchant l\'action (2-20)').setRequired(true).setMinValue(2).setMaxValue(20))
+      .addIntegerOption(o => o.setName('fenetre').setDescription('Fenêtre en secondes (10-120)').setRequired(true).setMinValue(10).setMaxValue(120))
+      .addStringOption(o => o.setName('action').setDescription('Action à effectuer').setRequired(false).addChoices(
+        { name: 'Kick', value: 'kick' },
+        { name: 'Ban', value: 'ban' },
+        { name: 'Lock (verrouiller)', value: 'lock' }
+      ))
+  )
+  .addSubcommand(sub =>
+    sub
+      .setName('whitelist_role_add')
+      .setDescription('Ajouter un rôle à la whitelist')
+      .addRoleOption(o => o.setName('role').setDescription('Rôle à exempter').setRequired(true))
+  )
+  .addSubcommand(sub =>
+    sub
+      .setName('whitelist_role_remove')
+      .setDescription('Retirer un rôle de la whitelist')
+      .addRoleOption(o => o.setName('role').setDescription('Rôle à retirer').setRequired(true))
+  )
+  .addSubcommand(sub => sub.setName('whitelist_role_list').setDescription('Voir les rôles whitelistés'))
+  .addSubcommand(sub =>
+    sub
+      .setName('whitelist_user_add')
+      .setDescription('Ajouter un utilisateur à la whitelist')
+      .addUserOption(o => o.setName('utilisateur').setDescription('Utilisateur à exempter').setRequired(true))
+  )
+  .addSubcommand(sub =>
+    sub
+      .setName('whitelist_user_remove')
+      .setDescription('Retirer un utilisateur de la whitelist')
+      .addUserOption(o => o.setName('utilisateur').setDescription('Utilisateur à retirer').setRequired(true))
+  )
+  .addSubcommand(sub => sub.setName('whitelist_user_list').setDescription('Voir les utilisateurs whitelistés'))
+  .addSubcommand(sub =>
+    sub
+      .setName('newaccount')
+      .setDescription('Cibler les comptes récents (0 = tous)')
+      .addIntegerOption(o => o.setName('jours').setDescription('Âge max du compte en jours (0-365)').setRequired(true).setMinValue(0).setMaxValue(365))
+  )
+  .addSubcommand(sub =>
+    sub
+      .setName('lockduration')
+      .setDescription('Durée auto du lock avant retour à la normale (0 = manuel)')
+      .addIntegerOption(o => o.setName('minutes').setDescription('Minutes (0-1440)').setRequired(true).setMinValue(0).setMaxValue(1440))
+  )
+  .addSubcommand(sub =>
+    sub
+      .setName('alert')
+      .setDescription('Définir le canal des alertes antiraid')
+      .addChannelOption(o => o.setName('canal').setDescription('Canal pour les alertes').setRequired(false).addChannelTypes(ChannelType.GuildText))
+  )
+  .addSubcommand(sub =>
+    sub
+      .setName('alert_clear')
+      .setDescription('Supprimer le canal d\'alerte')
+  )
+  .addSubcommand(sub =>
+    sub
+      .setName('reason')
+      .setDescription('Raison personnalisée pour kick/ban')
+      .addStringOption(o => o.setName('texte').setDescription('Raison (vide pour réinitialiser)').setRequired(false))
+  )
+  .addSubcommand(sub => sub.setName('reset').setDescription('Réinitialiser toute la configuration'))
+  .addSubcommand(sub => sub.setName('status').setDescription('Voir la configuration actuelle'));
+
 export default {
-  data: {
-    name: 'antiraid',
-    description: 'Protéger le serveur contre les raids (joins massifs)',
-  },
-  execute: async (message, args) => {
-    if (!message.member.permissions.has('Administrator')) {
-      return message.reply({
-        embeds: [createEmbed('error', {
-          title: 'Permission refusée',
-          description: 'Vous devez être administrateur pour utiliser cette commande.',
+  data: antiraidSlashData,
+  execute: async (interactionOrMessage, args, client) => {
+    const isSlash = interactionOrMessage.isChatInputCommand?.();
+    const interaction = isSlash ? interactionOrMessage : null;
+
+    if (!interaction) {
+      return interactionOrMessage.reply({
+        embeds: [createEmbed('info', {
+          title: 'Antiraid',
+          description: 'L\'antiraid est disponible uniquement en **slash command**.\nUtilisez `/antiraid` pour configurer la protection.',
         })],
       });
     }
 
-    const subcommand = args[0]?.toLowerCase();
-    const sub2 = args[1]?.toLowerCase();
-    const guildData = getGuildData(message.guild.id);
-    const cfg = ensureConfig(guildData, message.guild.id);
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      return interaction.reply({
+        content: 'Vous devez être administrateur.',
+        ephemeral: true,
+      });
+    }
+
+    const sub = interaction.options.getSubcommand();
+    const guildData = getGuildData(interaction.guild.id);
+    const cfg = ensureConfig(guildData, interaction.guild.id);
     const e = E;
 
-    // === ON / OFF ===
-    if (subcommand === 'on' || subcommand === 'enable') {
+    if (sub === 'on') {
       cfg.enabled = true;
-      saveGuildData(message.guild.id, guildData);
-      return message.reply({
-        embeds: [createEmbed('success', {
-          title: `${e.success} Antiraid activé`,
-          description: buildConfigSummary(cfg),
-        })],
+      saveGuildData(interaction.guild.id, guildData);
+      return interaction.reply({
+        embeds: [createEmbed('success', { title: `${e.success} Antiraid activé`, description: buildConfigSummary(cfg) })],
+        ephemeral: true,
       });
     }
 
-    if (subcommand === 'off' || subcommand === 'disable') {
+    if (sub === 'off') {
       cfg.enabled = false;
-      saveGuildData(message.guild.id, guildData);
-      return message.reply({
-        embeds: [createEmbed('success', {
-          title: `${e.success} Antiraid désactivé`,
-          description: 'La protection antiraid est désactivée.',
-        })],
+      saveGuildData(interaction.guild.id, guildData);
+      return interaction.reply({
+        embeds: [createEmbed('success', { title: `${e.success} Antiraid désactivé`, description: 'La protection antiraid est désactivée.' })],
+        ephemeral: true,
       });
     }
 
-    // === CONFIG (seuil, fenêtre, action) ===
-    if (subcommand === 'config' || subcommand === 'set') {
-      const threshold = parseInt(args[1], 10);
-      const windowSec = parseInt(args[2], 10);
-      const action = (args[3] || cfg.action).toLowerCase();
-
-      if (!args[1] || !args[2]) {
-        return message.reply({
-          embeds: [createEmbed('error', {
-            title: 'Usage',
-            description: '`antiraid config <seuil> <fenêtre_secondes> [action]`\n\nEx: `antiraid config 5 30 kick`\n• seuil: 2-20\n• fenêtre: 10-120 secondes\n• action: kick, ban, lock',
-          })],
-        });
-      }
-
-      if (isNaN(threshold) || threshold < 2 || threshold > 20) {
-        return message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: 'Seuil invalide (2-20).' })] });
-      }
-      if (isNaN(windowSec) || windowSec < 10 || windowSec > 120) {
-        return message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: 'Fenêtre invalide (10-120s).' })] });
-      }
-      if (!['kick', 'ban', 'lock'].includes(action)) {
-        return message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: 'Action: kick, ban ou lock.' })] });
-      }
+    if (sub === 'config') {
+      const threshold = interaction.options.getInteger('seuil');
+      const windowSec = interaction.options.getInteger('fenetre');
+      const action = interaction.options.getString('action') || cfg.action;
 
       cfg.threshold = threshold;
       cfg.windowSeconds = windowSec;
       cfg.action = action;
-      saveGuildData(message.guild.id, guildData);
-      return message.reply({
+      saveGuildData(interaction.guild.id, guildData);
+      return interaction.reply({
         embeds: [createEmbed('success', {
           title: `${e.success} Config mise à jour`,
           description: `**${threshold}** joins en **${windowSec}s** → **${action}**`,
         })],
+        ephemeral: true,
       });
     }
 
-    // === WHITELIST ===
-    if (subcommand === 'whitelist' && !sub2) {
-      return message.reply({
-        embeds: [createEmbed('info', {
-          title: `${e.list} Whitelist antiraid`,
-          description: [
-            '**Rôles:** `antiraid whitelist role add/remove @rôle`',
-            '**Utilisateurs:** `antiraid whitelist user add/remove @user`',
-            '',
-            `Rôles whitelistés: ${cfg.whitelistRoles?.length || 0}`,
-            `Utilisateurs whitelistés: ${cfg.whitelistUsers?.length || 0}`,
-          ].join('\n'),
+    if (sub === 'whitelist_role_add') {
+      const role = interaction.options.getRole('role');
+      if (!cfg.whitelistRoles.includes(role.id)) {
+        cfg.whitelistRoles.push(role.id);
+        saveGuildData(interaction.guild.id, guildData);
+      }
+      return interaction.reply({
+        embeds: [createEmbed('success', {
+          title: `${e.success} Rôle whitelisté`,
+          description: `${role} ne sera pas affecté par l'antiraid.`,
         })],
+        ephemeral: true,
       });
     }
 
-    if (subcommand === 'whitelist' && (sub2 === 'role' || sub2 === 'roles')) {
-      const action = args[2]?.toLowerCase();
-      const role = message.mentions.roles.first() || message.guild.roles.cache.get(args[3]);
-
-      if (action === 'add' && role) {
-        if (!cfg.whitelistRoles.includes(role.id)) {
-          cfg.whitelistRoles.push(role.id);
-          saveGuildData(message.guild.id, guildData);
-        }
-        return message.reply({
-          embeds: [createEmbed('success', {
-            title: `${e.success} Rôle whitelisté`,
-            description: `${role} ne sera pas affecté par l'antiraid.`,
-          })],
-        });
-      }
-      if (action === 'remove' && role) {
-        cfg.whitelistRoles = cfg.whitelistRoles.filter(id => id !== role.id);
-        saveGuildData(message.guild.id, guildData);
-        return message.reply({
-          embeds: [createEmbed('success', {
-            title: `${e.success} Rôle retiré`,
-            description: `${role} n'est plus whitelisté.`,
-          })],
-        });
-      }
-      const list = cfg.whitelistRoles.map(id => message.guild.roles.cache.get(id)?.toString() || id).join(', ') || 'Aucun';
-      return message.reply({
-        embeds: [createEmbed('info', {
-          title: `${e.list} Rôles whitelistés`,
-          description: list,
-          fields: [{ name: 'Usage', value: '`antiraid whitelist role add @rôle`\n`antiraid whitelist role remove @rôle`', inline: false }],
+    if (sub === 'whitelist_role_remove') {
+      const role = interaction.options.getRole('role');
+      cfg.whitelistRoles = cfg.whitelistRoles.filter(id => id !== role.id);
+      saveGuildData(interaction.guild.id, guildData);
+      return interaction.reply({
+        embeds: [createEmbed('success', {
+          title: `${e.success} Rôle retiré`,
+          description: `${role} n'est plus whitelisté.`,
         })],
+        ephemeral: true,
       });
     }
 
-    // === WHITELIST USERS ===
-    if (subcommand === 'whitelist' && (sub2 === 'user' || sub2 === 'users')) {
-      const action = args[2]?.toLowerCase();
-      const user = message.mentions.users.first();
+    if (sub === 'whitelist_role_list') {
+      const list = cfg.whitelistRoles.map(id => interaction.guild.roles.cache.get(id)?.toString() || id).join(', ') || 'Aucun';
+      return interaction.reply({
+        embeds: [createEmbed('info', { title: `${e.list} Rôles whitelistés`, description: list })],
+        ephemeral: true,
+      });
+    }
 
-      if (action === 'add' && user) {
-        if (!cfg.whitelistUsers.includes(user.id)) {
-          cfg.whitelistUsers.push(user.id);
-          saveGuildData(message.guild.id, guildData);
-        }
-        return message.reply({
-          embeds: [createEmbed('success', {
-            title: `${e.success} Utilisateur whitelisté`,
-            description: `${user.tag} ne sera pas affecté par l'antiraid.`,
-          })],
-        });
+    if (sub === 'whitelist_user_add') {
+      const user = interaction.options.getUser('utilisateur');
+      if (!cfg.whitelistUsers.includes(user.id)) {
+        cfg.whitelistUsers.push(user.id);
+        saveGuildData(interaction.guild.id, guildData);
       }
-      if (action === 'remove' && user) {
-        cfg.whitelistUsers = cfg.whitelistUsers.filter(id => id !== user.id);
-        saveGuildData(message.guild.id, guildData);
-        return message.reply({
-          embeds: [createEmbed('success', {
-            title: `${e.success} Utilisateur retiré`,
-            description: `${user.tag} n'est plus whitelisté.`,
-          })],
-        });
-      }
+      return interaction.reply({
+        embeds: [createEmbed('success', {
+          title: `${e.success} Utilisateur whitelisté`,
+          description: `${user.tag} ne sera pas affecté par l'antiraid.`,
+        })],
+        ephemeral: true,
+      });
+    }
+
+    if (sub === 'whitelist_user_remove') {
+      const user = interaction.options.getUser('utilisateur');
+      cfg.whitelistUsers = cfg.whitelistUsers.filter(id => id !== user.id);
+      saveGuildData(interaction.guild.id, guildData);
+      return interaction.reply({
+        embeds: [createEmbed('success', {
+          title: `${e.success} Utilisateur retiré`,
+          description: `${user.tag} n'est plus whitelisté.`,
+        })],
+        ephemeral: true,
+      });
+    }
+
+    if (sub === 'whitelist_user_list') {
       const list = cfg.whitelistUsers.slice(0, 10).map(id => `<@${id}>`).join(', ') || 'Aucun';
-      return message.reply({
-        embeds: [createEmbed('info', {
-          title: `${e.list} Utilisateurs whitelistés`,
-          description: list + (cfg.whitelistUsers.length > 10 ? ` (+${cfg.whitelistUsers.length - 10})` : ''),
-          fields: [{ name: 'Usage', value: '`antiraid whitelist user add @user`\n`antiraid whitelist user remove @user`', inline: false }],
-        })],
+      const suffix = cfg.whitelistUsers.length > 10 ? ` (+${cfg.whitelistUsers.length - 10})` : '';
+      return interaction.reply({
+        embeds: [createEmbed('info', { title: `${e.list} Utilisateurs whitelistés`, description: list + suffix })],
+        ephemeral: true,
       });
     }
 
-    // === NEW ACCOUNT (âge max du compte) ===
-    if (subcommand === 'newaccount' || subcommand === 'age') {
-      const days = parseInt(args[1], 10);
-      if (args[1] === undefined || args[1] === '') {
-        return message.reply({
-          embeds: [createEmbed('info', {
-            title: 'Âge des comptes',
-            description: `Actuel: **${cfg.newAccountMaxDays === 0 ? 'Tous les comptes' : `Comptes de moins de ${cfg.newAccountMaxDays} jour(s)`}**\n\n\`antiraid newaccount <jours>\`\n• 0 = tous les comptes\n• 7 = seulement les comptes créés il y a moins de 7 jours`,
-          })],
-        });
-      }
-      if (isNaN(days) || days < 0 || days > 365) {
-        return message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: 'Valeur invalide (0-365 jours).' })] });
-      }
+    if (sub === 'newaccount') {
+      const days = interaction.options.getInteger('jours');
       cfg.newAccountMaxDays = days;
-      saveGuildData(message.guild.id, guildData);
-      return message.reply({
+      saveGuildData(interaction.guild.id, guildData);
+      return interaction.reply({
         embeds: [createEmbed('success', {
           title: `${e.success} Âge configuré`,
           description: days === 0 ? 'Tous les comptes sont concernés.' : `Seuls les comptes de moins de ${days} jour(s) seront affectés.`,
         })],
+        ephemeral: true,
       });
     }
 
-    // === LOCK DURATION (auto-désactivation du lock) ===
-    if (subcommand === 'lockduration' || subcommand === 'lockauto') {
-      const mins = parseInt(args[1], 10);
-      if (args[1] === undefined || args[1] === '') {
-        return message.reply({
-          embeds: [createEmbed('info', {
-            title: 'Durée du lock',
-            description: `Actuel: **${cfg.lockDurationMinutes === 0 ? 'Manuel (pas d\'auto-désactivation)' : `${cfg.lockDurationMinutes} minute(s)`}**\n\n\`antiraid lockduration <minutes>\`\n• 0 = désactiver manuellement\n• 30 = revenir au niveau normal après 30 min`,
-          })],
-        });
-      }
-      if (isNaN(mins) || mins < 0 || mins > 1440) {
-        return message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: 'Valeur invalide (0-1440 minutes).' })] });
-      }
+    if (sub === 'lockduration') {
+      const mins = interaction.options.getInteger('minutes');
       cfg.lockDurationMinutes = mins;
-      saveGuildData(message.guild.id, guildData);
-      return message.reply({
+      saveGuildData(interaction.guild.id, guildData);
+      return interaction.reply({
         embeds: [createEmbed('success', {
           title: `${e.success} Durée du lock`,
-          description: mins === 0 ? 'Le lock restera jusqu\'à désactivation manuelle.' : `Le niveau de vérification reviendra après ${mins} minute(s).`,
+          description: mins === 0 ? 'Le lock restera jusqu\'à désactivation manuelle.' : `Le niveau reviendra après ${mins} minute(s).`,
         })],
+        ephemeral: true,
       });
     }
 
-    // === ALERT CHANNEL ===
-    if (subcommand === 'alert' || subcommand === 'channel') {
-      const channel = message.mentions.channels.first() || message.guild.channels.cache.get(args[1]);
-      if (args[1] === 'clear' || args[1] === 'remove' || args[1] === 'none') {
-        cfg.alertChannelId = null;
-        saveGuildData(message.guild.id, guildData);
-        return message.reply({
-          embeds: [createEmbed('success', { title: `${e.success} Canal d'alerte`, description: 'Canal d\'alerte antiraid supprimé.' })],
-        });
-      }
+    if (sub === 'alert') {
+      const channel = interaction.options.getChannel('canal');
       if (channel) {
         cfg.alertChannelId = channel.id;
-        saveGuildData(message.guild.id, guildData);
-        return message.reply({
+        saveGuildData(interaction.guild.id, guildData);
+        return interaction.reply({
           embeds: [createEmbed('success', {
             title: `${e.success} Canal d'alerte`,
             description: `Les alertes antiraid seront envoyées dans ${channel}.`,
           })],
+          ephemeral: true,
         });
       }
       const current = cfg.alertChannelId ? `<#${cfg.alertChannelId}>` : 'Aucun';
-      return message.reply({
-        embeds: [createEmbed('info', {
-          title: 'Canal d\'alerte',
-          description: `Actuel: ${current}\n\n\`antiraid alert #canal\` – Définir\n\`antiraid alert clear\` – Supprimer`,
-        })],
+      return interaction.reply({
+        embeds: [createEmbed('info', { title: 'Canal d\'alerte', description: `Actuel: ${current}\n\nUtilisez \`/antiraid alert #canal\` pour définir.` })],
+        ephemeral: true,
       });
     }
 
-    // === CUSTOM REASON ===
-    if (subcommand === 'reason' || subcommand === 'raison') {
-      if (args[1] === 'clear' || args[1] === 'remove' || args[1] === 'reset') {
+    if (sub === 'alert_clear') {
+      cfg.alertChannelId = null;
+      saveGuildData(interaction.guild.id, guildData);
+      return interaction.reply({
+        embeds: [createEmbed('success', { title: `${e.success} Canal d'alerte`, description: 'Canal d\'alerte supprimé.' })],
+        ephemeral: true,
+      });
+    }
+
+    if (sub === 'reason') {
+      const texte = interaction.options.getString('texte');
+      if (!texte || texte.trim() === '') {
         cfg.customReason = null;
-        saveGuildData(message.guild.id, guildData);
-        return message.reply({
+        saveGuildData(interaction.guild.id, guildData);
+        return interaction.reply({
           embeds: [createEmbed('success', { title: `${e.success} Raison`, description: 'Raison personnalisée supprimée.' })],
+          ephemeral: true,
         });
       }
-      const reason = args.slice(1).join(' ').trim();
-      if (reason) {
-        cfg.customReason = reason.slice(0, 500);
-        saveGuildData(message.guild.id, guildData);
-        return message.reply({
-          embeds: [createEmbed('success', {
-            title: `${e.success} Raison configurée`,
-            description: `Raison: ${cfg.customReason}`,
-          })],
-        });
-      }
-      return message.reply({
-        embeds: [createEmbed('info', {
-          title: 'Raison personnalisée',
-          description: `Actuel: ${cfg.customReason || 'Par défaut'}\n\n\`antiraid reason <texte>\` – Définir\n\`antiraid reason clear\` – Réinitialiser`,
+      cfg.customReason = texte.trim().slice(0, 500);
+      saveGuildData(interaction.guild.id, guildData);
+      return interaction.reply({
+        embeds: [createEmbed('success', {
+          title: `${e.success} Raison configurée`,
+          description: `Raison: ${cfg.customReason}`,
         })],
+        ephemeral: true,
       });
     }
 
-    // === RESET (réinitialiser toute la config) ===
-    if (subcommand === 'reset') {
+    if (sub === 'reset') {
       guildData.settings.antiraid = { ...DEFAULT_CONFIG };
-      saveGuildData(message.guild.id, guildData);
-      return message.reply({
+      saveGuildData(interaction.guild.id, guildData);
+      return interaction.reply({
         embeds: [createEmbed('success', {
           title: `${e.success} Config réinitialisée`,
           description: 'Toute la configuration antiraid a été réinitialisée.',
         })],
+        ephemeral: true,
       });
     }
 
-    // === STATUS / INFO ===
-    if (subcommand === 'status' || subcommand === 'info' || !subcommand) {
+    if (sub === 'status') {
       const status = cfg.enabled ? 'Activé' : 'Désactivé';
       const color = cfg.enabled ? 'success' : 'info';
       const fields = [
@@ -334,61 +355,14 @@ export default {
       if (cfg.customReason) {
         fields.push({ name: 'Raison personnalisée', value: cfg.customReason.slice(0, 100), inline: false });
       }
-      return message.reply({
+      return interaction.reply({
         embeds: [createEmbed(color, {
           title: `${e.lock} Antiraid – ${status}`,
           description: buildConfigSummary(cfg),
           fields,
-          footer: { text: 'antiraid help pour toutes les commandes' },
         })],
+        ephemeral: true,
       });
     }
-
-    // === HELP ===
-    if (subcommand === 'help') {
-      return message.reply({
-        embeds: [createEmbed('info', {
-          title: `${e.lock} Antiraid – Aide complète`,
-          description: [
-            '**Activation**',
-            '• `antiraid on` / `antiraid off`',
-            '',
-            '**Config principale**',
-            '• `antiraid config <seuil> <secondes> [action]`',
-            '  seuil: 2-20 | fenêtre: 10-120s | action: kick, ban, lock',
-            '',
-            '**Whitelist**',
-            '• `antiraid whitelist role add/remove @rôle`',
-            '• `antiraid whitelist user add/remove @user`',
-            '',
-            '**Options avancées**',
-            '• `antiraid newaccount <jours>` – Cibler les comptes récents (0=tous)',
-            '• `antiraid lockduration <min>` – Auto-désactiver le lock (0=manuel)',
-            '• `antiraid alert #canal` – Canal pour les alertes',
-            '• `antiraid reason <texte>` – Raison personnalisée kick/ban',
-            '',
-            '**Autres**',
-            '• `antiraid status` – Voir la config',
-            '• `antiraid reset` – Tout réinitialiser',
-          ].join('\n'),
-        })],
-      });
-    }
-
-    return message.reply({
-      embeds: [createEmbed('info', {
-        title: 'Antiraid',
-        description: 'Commande inconnue. Utilisez `antiraid help` pour l\'aide complète.',
-      })],
-    });
   },
 };
-
-function buildConfigSummary(cfg) {
-  const parts = [`**${cfg.threshold}** joins en **${cfg.windowSeconds}s** → **${cfg.action}**`];
-  if (cfg.newAccountMaxDays > 0) parts.push(`Comptes < ${cfg.newAccountMaxDays}j`);
-  if (cfg.whitelistRoles?.length || cfg.whitelistUsers?.length) {
-    parts.push(`Whitelist: ${(cfg.whitelistRoles?.length || 0) + (cfg.whitelistUsers?.length || 0)}`);
-  }
-  return parts.join(' • ');
-}

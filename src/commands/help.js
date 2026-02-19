@@ -39,49 +39,24 @@ export default {
       const usage = helpInfo?.usage || [];
       const examples = helpInfo?.examples || [];
       const permissions = helpInfo?.permissions;
-      const hasStyledFormat = helpInfo?.syntax !== undefined;
+      const footerParts = [];
+      if (helpInfo?.module) footerParts.push(`Module: ${helpInfo.module}`);
+      if (helpInfo?.aliases?.length) footerParts.push(`Aliases: ${helpInfo.aliases.join(', ')}`);
 
-      let embed;
-      if (hasStyledFormat) {
-        // Style "vile" : pas de barre colorée à gauche, texte coloré via syntax highlighting
-        const syntaxLine = helpInfo.syntax ? `${prefix}${commandName} ${helpInfo.syntax}`.trim() : `${prefix}${commandName}`;
-        const exampleLine = helpInfo.example ? `${prefix}${commandName} ${helpInfo.example}` : `${prefix}${commandName}`;
-        // ini: [labels] en bleu, texte coloré dans le bloc
-        const codeBlock = `\`\`\`ini\n[Syntax] ${syntaxLine}\n[Example] ${exampleLine}\n\`\`\``;
-        const footerParts = [`Module: ${helpInfo.module || 'Général'}`];
-        if (helpInfo.aliases?.length) {
-          footerParts.push(`Aliases: ${helpInfo.aliases.join(', ')}`);
-        }
-        const fields = [];
-        if (helpInfo.arguments && helpInfo.arguments !== 'aucun') {
-          fields.push({ name: '**Arguments**', value: helpInfo.arguments, inline: true });
-        }
-        if (permissions) {
-          fields.push({ name: '**Permissions**', value: permissions, inline: true });
-        }
-        fields.push({ name: '\u200b', value: codeBlock, inline: false });
-        embed = createEmbed('info', {
-          title: `Command: ${commandName}`,
-          description: description,
-          fields,
-          footer: { text: footerParts.join(' • ') },
-          timestamp: true,
-        });
-      } else {
-        // Format classique
-        embed = createEmbed('info', {
-          title: `Aide: ${prefix}${commandName}`,
-          description: description,
-        });
-        if (usage.length > 0) {
-          embed.addFields({ name: 'Utilisation', value: usage.join('\n'), inline: false });
-        }
-        if (examples.length > 0) {
-          embed.addFields({ name: 'Exemples', value: examples.join('\n'), inline: false });
-        }
-        if (permissions) {
-          embed.addFields({ name: 'Permissions requises', value: permissions, inline: false });
-        }
+      const embed = createEmbed('info', {
+        title: `Aide: ${prefix}${commandName}`,
+        description: description,
+        footer: footerParts.length ? { text: footerParts.join(' • ') } : undefined,
+        timestamp: true,
+      });
+      if (usage.length > 0) {
+        embed.addFields({ name: '📋 Utilisation', value: usage.join('\n'), inline: false });
+      }
+      if (examples.length > 0) {
+        embed.addFields({ name: '💡 Exemples', value: examples.join('\n'), inline: false });
+      }
+      if (permissions) {
+        embed.addFields({ name: '🔐 Permissions', value: permissions, inline: false });
       }
 
       return message.reply({ embeds: [embed] });
@@ -100,7 +75,7 @@ export default {
       'Messages': ['welcome', 'goodbye', 'sticky', 'autoresponder', 'imageonly'],
       'Booster': ['boosterrole', 'boost'],
       'Informations': ['help', 'info', 'userinfo', 'profile', 'serverinfo', 'botinfo', 'channelinfo', 'roleinfo', 'invite', 'snipe', 'firstmessage', 'membercount', 'uptime'],
-      'Utilitaires': ['avatar', 'emoji', 'ping', 'say', 'poll', 'calc', 'random', 'dice', 'urban', 'embed', 'webhook', 'afk', 'remind', 'notes', 'backup', 'giveaway', 'extractemojis', 'ticket', 'renew', 'roleall', 'nuke', 'antiraid'],
+      'Utilitaires': ['avatar', 'emoji', 'ping', 'say', 'poll', 'calc', 'random', 'dice', 'urban', 'embed', 'webhook', 'afk', 'remind', 'notes', 'backup', 'giveaway', 'extractemojis', 'ticket', 'joincreate', 'renew', 'roleall', 'nuke', 'antiraid'],
       'Fun': ['8ball', 'coinflip', 'quote', 'suggest', 'ship', 'choose', 'roast', 'compliment', 'pp'],
       'Vouch': ['vouch'],
     };

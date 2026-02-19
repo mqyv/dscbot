@@ -123,6 +123,9 @@ export default {
       case 'remove':
         await ticketRemove(message, args.slice(1));
         break;
+      case 'rename':
+        await ticketRename(message, args.slice(1));
+        break;
       case 'config':
         await ticketConfig(message, args.slice(1));
         break;
@@ -1068,6 +1071,48 @@ async function ticketRemove(message, args) {
 
   await message.channel.permissionOverwrites.delete(user.id);
   message.reply({ embeds: [createEmbed('success', { title: 'Utilisateur retiré', description: `${user} a été retiré du ticket.` })] });
+}
+
+async function ticketRename(message, args) {
+  const guildData = getGuildData(message.guild.id);
+  const ticketInfo = getCategoryForChannel(guildData, message.channel.parentId);
+
+  if (!ticketInfo) {
+    return message.reply({
+      embeds: [createEmbed('error', { title: 'Erreur', description: 'Utilisez cette commande dans un canal ticket.' })],
+    });
+  }
+
+  const { config } = ticketInfo;
+  const isStaff = message.member.permissions.has('ManageChannels') ||
+    (config.supportRoleId && message.member.roles.cache.has(config.supportRoleId));
+
+  if (!isStaff) {
+    return message.reply({
+      embeds: [createEmbed('error', { title: 'Permission refusée', description: 'Seuls les membres du staff peuvent renommer les tickets.' })],
+    });
+  }
+
+  const newName = args.join(' ').trim().replace(/[^a-zA-Z0-9À-ÿ\-_ ]/g, '').slice(0, 100);
+  if (!newName) {
+    return message.reply({
+      embeds: [createEmbed('error', { title: 'Erreur', description: 'Usage: `,ticket rename <nouveau nom>`\nExemple: `,ticket rename support-urgent`' })],
+    });
+  }
+
+  const sanitized = newName.toLowerCase().replace(/\s+/g, '-').slice(0, 100);
+  if (!sanitized) {
+    return message.reply({
+      embeds: [createEmbed('error', { title: 'Erreur', description: 'Nom invalide. Utilisez des lettres, chiffres, tirets ou espaces.' })],
+    });
+  }
+
+  try {
+    await message.channel.setName(sanitized);
+    message.reply({ embeds: [createEmbed('success', { title: 'Ticket renommé', description: `Le ticket s'appelle maintenant \`${sanitized}\`.` })] });
+  } catch (e) {
+    message.reply({ embeds: [createEmbed('error', { title: 'Erreur', description: e.message || 'Impossible de renommer le canal.' })] });
+  }
 }
 
 async function ticketConfig(message, args) {

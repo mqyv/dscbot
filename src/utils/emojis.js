@@ -10,4 +10,7 @@ export const E = {
   reminder: '⏰',
   loading: '⏳',
   info: 'ℹ️',
+  gift: '🎁',
+  celebration: '🎉',
+  lock: '🔒',
 };

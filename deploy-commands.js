@@ -44,13 +44,13 @@ const COMMAND_OPTIONS = {
 };
 
 // Commandes slash déployées
-const SLASH_COMMANDS = ['ai', 'vouch', 'giveaway'];
+const SLASH_COMMANDS = ['ai', 'vouch', 'giveaway', 'joincreate', 'antiraid'];
 
 const commands = [];
 const commandsPath = join(__dirname, 'src', 'commands');
 const commandFiles = readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
-console.log('Chargement des commandes slash (/ai, /vouch)...');
+console.log('Chargement des commandes slash (/ai, /vouch, /giveaway, /joincreate, /antiraid)...');
 
 for (const file of commandFiles) {
   const filePath = join(commandsPath, file);

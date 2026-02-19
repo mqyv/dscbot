@@ -17,6 +17,7 @@ const giveawaySlashData = new SlashCommandBuilder()
       .addChannelOption(o => o.setName('canal').setDescription('Salon où envoyer (défaut: actuel)').setRequired(false))
       .addStringOption(o => o.setName('titre').setDescription('Titre de l\'embed').setRequired(false))
       .addStringOption(o => o.setName('description').setDescription('Description de l\'embed').setRequired(false))
+      .addStringOption(o => o.setName('conditions').setDescription('Conditions de participation (ex: Être membre depuis 7j)').setRequired(false))
       .addStringOption(o => o.setName('couleur').setDescription('Couleur hex (ex: 5865F2)').setRequired(false))
       .addRoleOption(o => o.setName('role').setDescription('Rôle requis pour participer').setRequired(false))
   )
@@ -71,10 +72,14 @@ function buildGiveawayEmbed(giveaway, ended = false, guild = null) {
   }
   if (giveaway.requiredRoles?.length && !ended) {
     const rolesStr = giveaway.requiredRoles.map(r => `<@&${r}>`).join(', ');
-    fields.push({ name: 'Conditions', value: `Rôle requis : ${rolesStr}`, inline: false });
+    fields.push({ name: 'Rôle requis', value: rolesStr, inline: false });
+  }
+  if (giveaway.conditions && !ended) {
+    fields.push({ name: 'Conditions', value: giveaway.conditions, inline: false });
   }
 
-  const title = custom.title || (ended ? `${e.celebration} Giveaway terminé` : `${e.gift} Giveaway`);
+  const defaultTitle = ended ? `${e.celebration} Giveaway terminé` : `${e.gift} ${giveaway.prize}`;
+  const title = (custom.title && custom.title.trim()) ? custom.title : defaultTitle;
   const description = custom.description || (ended
     ? `**${giveaway.prize}**\n\nFélicitations aux gagnants !`
     : `**${giveaway.prize}**\n\nCliquez sur le bouton pour participer !`);
@@ -84,7 +89,7 @@ function buildGiveawayEmbed(giveaway, ended = false, guild = null) {
     .setTitle(title)
     .setDescription(description)
     .addFields(fields)
-    .setFooter({ text: `Organisé par ${giveaway.hostTag || 'Inconnu'} • ID: ${giveaway.id}` })
+    .setFooter({ text: `Organisé par ${giveaway.hostTag || 'Inconnu'}` })
     .setTimestamp();
 
   if (custom.thumbnail) embed.setThumbnail(custom.thumbnail);
@@ -128,6 +133,7 @@ export default {
       const channel = interaction.options.getChannel('canal') || interaction.channel;
       const titre = interaction.options.getString('titre');
       const description = interaction.options.getString('description');
+      const conditions = interaction.options.getString('conditions');
       const couleur = interaction.options.getString('couleur');
       const role = interaction.options.getRole('role');
 
@@ -163,6 +169,7 @@ export default {
         ended: false,
         embed: Object.keys(embedOpts).length ? embedOpts : null,
         requiredRoles: role ? [role.id] : null,
+        conditions: conditions?.trim() || null,
       };
 
       const guildData = getGuildData(interaction.guild.id);
@@ -326,7 +333,7 @@ export async function endGiveaway(client, guildId, id) {
       await msg.edit({ embeds: [embed], components: [getGiveawayButton(true)] });
       if (winners.length > 0) {
         await channel.send({
-          content: `${e.celebration} Félicitations ${winners.join(', ')} ! Vous avez gagné **${giveaway.prize}** !`,
+          content: `🎉 Félicitations ${winners.join(', ')} ! Vous avez gagné **${giveaway.prize}** !`,
         }).catch(() => {});
       }
     }

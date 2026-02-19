@@ -50,7 +50,7 @@ const WL_COMMANDS = [
   'ban', 'kick', 'timeout', 'warn', 'unban', 'clear', 'say',
   'hide', 'unhide', 'lock', 'unlock', 'hideall',
   'alias', 'sticky', 'autoresponder', 'imageonly', 'pin', 'unpin', 'webhook', 'ignore',
-  'autorole', 'addrole', 'delrole', 'backup', 'giveaway', 'extractemojis', 'ticket', 'renew', 'roleall', 'nuke', 'antiraid'
+  'autorole', 'addrole', 'delrole', 'backup', 'giveaway', 'extractemojis', 'ticket', 'renew', 'roleall', 'nuke', 'antiraid', 'joincreate'
 ];
 
 // Commandes utilisables en MP (bot perso)
@@ -71,6 +71,7 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildInvites,
+    GatewayIntentBits.GuildVoiceStates,
   ],
   shards: 0,
   shardCount: 1,
@@ -334,7 +335,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
   try {
     // Commandes slash avec logique interaction directe
-    if (commandName === 'ai' || commandName === 'vouch' || commandName === 'giveaway') {
+    if (commandName === 'ai' || commandName === 'vouch' || commandName === 'giveaway' || commandName === 'joincreate' || commandName === 'antiraid') {
       await command.execute(interaction, [], client);
     } else {
       const { messageLike, args } = buildContextFromInteraction(interaction);
@@ -535,26 +536,30 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
 
 // Événement : Membre rejoint/quitte un canal vocal
 client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
+  // Join to create : créer un vocal quand on rejoint le canal configuré
+  try {
+    const { handleJoinCreateVoiceState } = await import('./commands/joincreate.js');
+    await handleJoinCreateVoiceState(oldState, newState);
+  } catch (e) {
+    console.error('JoinCreate VoiceState:', e);
+  }
+
   const { sendLog } = await import('./utils/logs.js');
-  
   if (oldState.channelId === newState.channelId) return;
 
   if (!oldState.channel && newState.channel) {
-    // Rejoint un canal
     await sendLog(newState.guild, 'voice', {
       member: newState.member,
       channel: newState.channel,
       action: 'Rejoint',
     });
   } else if (oldState.channel && !newState.channel) {
-    // Quitte un canal
     await sendLog(oldState.guild, 'voice', {
       member: oldState.member,
       channel: oldState.channel,
       action: 'Quitté',
     });
   } else if (oldState.channelId !== newState.channelId) {
-    // Changé de canal
     await sendLog(newState.guild, 'voice', {
       member: newState.member,
       channel: newState.channel,
