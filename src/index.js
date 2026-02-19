@@ -1,6 +1,6 @@
 import { Client, GatewayIntentBits, Collection, Events, VoiceState, Options } from 'discord.js';
 import { config } from 'dotenv';
-import { readdirSync, writeFileSync, readFileSync, existsSync, unlinkSync, openSync, closeSync, writeSync } from 'fs';
+import { readdirSync, writeFileSync, readFileSync, existsSync, unlinkSync, openSync, closeSync, writeSync, mkdirSync, statSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createEmbed } from './utils/embeds.js';
@@ -89,41 +89,35 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// Déduplication à la source : bloquer les événements en double AVANT le handler
-const processedIds = new Map();
-const DEDUP_CLEANUP = 15000;
-function cleanupProcessedIds() {
-  if (processedIds.size > 500) {
-    const now = Date.now();
-    for (const k of processedIds.keys()) if (now - processedIds.get(k) > DEDUP_CLEANUP) processedIds.delete(k);
+// Déduplication GLOBALE (partagée entre processus via /tmp)
+const EVENT_LOCK_DIR = process.platform === 'win32'
+  ? join(process.cwd(), '.event-locks')
+  : '/tmp/dscbot-event-locks';
+mkdirSync(EVENT_LOCK_DIR, { recursive: true });
+
+function sanitizeLockKey(key) {
+  return String(key).replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+function claimEventOnce(key, ttlMs = 15000) {
+  const lockPath = join(EVENT_LOCK_DIR, sanitizeLockKey(key));
+  try {
+    const fd = openSync(lockPath, 'wx');
+    closeSync(fd);
+    setTimeout(() => { try { unlinkSync(lockPath); } catch {} }, ttlMs);
+    return true;
+  } catch (e) {
+    if (e.code !== 'EEXIST') return false;
+    try {
+      const st = statSync(lockPath);
+      if (Date.now() - st.mtimeMs > ttlMs) {
+        unlinkSync(lockPath);
+        return claimEventOnce(key, ttlMs);
+      }
+    } catch {}
+    return false;
   }
 }
-const origEmit = client.emit.bind(client);
-const DEBUG_DEDUP = process.env.DEBUG_DEDUP === '1';
-client.emit = function(event, ...args) {
-  if (event === Events.MessageCreate) {
-    const msg = args[0];
-    if (msg?.author?.bot) return origEmit.apply(client, [event, ...args]);
-    const id = msg?.id || `m-${msg?.channelId}-${msg?.author?.id}-${msg?.createdTimestamp}`;
-    if (processedIds.has(id)) {
-      if (DEBUG_DEDUP) console.log('[DEDUP] Message bloqué:', id);
-      return false;
-    }
-    processedIds.set(id, Date.now());
-    cleanupProcessedIds();
-  }
-  if (event === Events.InteractionCreate) {
-    const ia = args[0];
-    const id = ia?.id || `i-${Date.now()}`;
-    if (processedIds.has(id)) {
-      if (DEBUG_DEDUP) console.log('[DEDUP] Interaction bloquée:', id);
-      return false;
-    }
-    processedIds.set(id, Date.now());
-    cleanupProcessedIds();
-  }
-  return origEmit.apply(client, [event, ...args]);
-};
 
 /** Force UNE SEULE réponse (évite x2/x3/x4/x5) */
 function onceReply(obj) {
@@ -218,6 +212,8 @@ client.removeAllListeners(Events.InteractionCreate);
 
 // Événement : Gestion des interactions (slash commands + boutons + select + modals)
 client.on(Events.InteractionCreate, async interaction => {
+  const interactionKey = `i-${interaction.id}`;
+  if (!claimEventOnce(interactionKey, 15000)) return;
   onceReply(interaction);
 
   // Gestion des modals (config embeds tickets)
@@ -570,6 +566,10 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
 // Événement : Message reçu
 client.on(Events.MessageCreate, async message => {
   if (message.author.bot) return;
+  const messageKey = message.id
+    ? `m-${message.id}`
+    : `m-${message.channelId}-${message.author?.id}-${message.createdTimestamp}`;
+  if (!claimEventOnce(messageKey, 15000)) return;
   onceReply(message);
 
   // Détection AFK
