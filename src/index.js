@@ -1,6 +1,6 @@
 import { Client, GatewayIntentBits, Collection, Events, VoiceState } from 'discord.js';
 import { config } from 'dotenv';
-import { readdirSync } from 'fs';
+import { readdirSync, writeFileSync, readFileSync, existsSync, unlinkSync, openSync, closeSync, writeSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createEmbed } from './utils/embeds.js';
@@ -10,6 +10,38 @@ import { isOwner, isMainOwner } from './utils/owners.js';
 import { getInviteCache, fetchAndCacheInvites } from './utils/invites.js';
 
 config();
+
+// Verrou GLOBAL : /tmp = même fichier pour tous les processus (pm2, systemd, etc.)
+const LOCK_FILE = process.platform === 'win32' ? join(process.cwd(), '.dscbot.lock') : '/tmp/dscbot.lock';
+function acquireLock() {
+  const tryAcquire = () => {
+    try {
+      const fd = openSync(LOCK_FILE, 'wx');
+      writeSync(fd, String(process.pid));
+      closeSync(fd);
+      return true;
+    } catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+      return false;
+    }
+  };
+  if (!tryAcquire()) {
+    try {
+      const pid = parseInt(readFileSync(LOCK_FILE, 'utf8'), 10);
+      if (pid) process.kill(pid, 0);
+      console.error(`❌ Bot déjà en cours (PID ${pid}). Fais: pm2 delete dscbot && pm2 start ecosystem.config.cjs`);
+      process.exit(1);
+    } catch {
+      try { unlinkSync(LOCK_FILE); } catch {}
+      if (!tryAcquire()) { console.error('❌ Verrou corrompu. Supprime .dscbot.lock et réessaie.'); process.exit(1); }
+    }
+  }
+  const cleanup = () => { try { unlinkSync(LOCK_FILE); } catch {} };
+  process.on('exit', cleanup);
+  process.on('SIGINT', () => { cleanup(); process.exit(); });
+  process.on('SIGTERM', () => { cleanup(); process.exit(); });
+}
+acquireLock();
 
 // Toutes les commandes accessibles au propriétaire OU aux whitelistés (whitelist par serveur)
 const WL_COMMANDS = [
@@ -43,6 +75,56 @@ const client = new Client({
 
 client.commands = new Collection();
 
+// Déduplication à la source : bloquer les événements en double AVANT le handler
+const processedIds = new Map();
+const DEDUP_CLEANUP = 15000;
+function cleanupProcessedIds() {
+  if (processedIds.size > 500) {
+    const now = Date.now();
+    for (const k of processedIds.keys()) if (now - processedIds.get(k) > DEDUP_CLEANUP) processedIds.delete(k);
+  }
+}
+const origEmit = client.emit.bind(client);
+const DEBUG_DEDUP = process.env.DEBUG_DEDUP === '1';
+client.emit = function(event, ...args) {
+  if (event === Events.MessageCreate) {
+    const msg = args[0];
+    if (msg?.author?.bot) return origEmit.apply(client, [event, ...args]);
+    const id = msg?.id || `m-${msg?.channelId}-${msg?.author?.id}-${msg?.createdTimestamp}`;
+    if (processedIds.has(id)) {
+      if (DEBUG_DEDUP) console.log('[DEDUP] Message bloqué:', id);
+      return false;
+    }
+    processedIds.set(id, Date.now());
+    cleanupProcessedIds();
+  }
+  if (event === Events.InteractionCreate) {
+    const ia = args[0];
+    const id = ia?.id || `i-${Date.now()}`;
+    if (processedIds.has(id)) {
+      if (DEBUG_DEDUP) console.log('[DEDUP] Interaction bloquée:', id);
+      return false;
+    }
+    processedIds.set(id, Date.now());
+    cleanupProcessedIds();
+  }
+  return origEmit.apply(client, [event, ...args]);
+};
+
+/** Force UNE SEULE réponse (évite x2/x3/x4/x5) */
+function onceReply(obj) {
+  if (!obj) return;
+  let replied = false;
+  const noop = () => ({ edit: () => {}, delete: () => Promise.resolve() });
+  const wrap = (orig) => async (...args) => {
+    if (replied) return noop();
+    replied = true;
+    return orig(...args);
+  };
+  if (typeof obj.reply === 'function') obj.reply = wrap(obj.reply.bind(obj));
+  if (typeof obj.followUp === 'function') obj.followUp = wrap(obj.followUp.bind(obj));
+}
+
 // Charger les commandes
 const commandsPath = join(__dirname, 'commands');
 const commandFiles = readdirSync(commandsPath).filter(file => file.endsWith('.js'));
@@ -57,7 +139,7 @@ for (const file of commandFiles) {
 
 // Événement : Bot prêt
 client.once(Events.ClientReady, async () => {
-  console.log(`✅ Bot connecté en tant que ${client.user.tag}!`);
+  console.log(`✅ Bot connecté en tant que ${client.user.tag}! (PID ${process.pid}, instance unique)`);
   console.log(`📊 Le bot est sur ${client.guilds.cache.size} serveur(s)`);
   client.guilds.cache.forEach(guild => {
     console.log(`   - ${guild.name} (${guild.id})`);
@@ -118,6 +200,8 @@ function buildContextFromInteraction(interaction) {
 
 // Événement : Gestion des interactions (slash commands + boutons + select + modals)
 client.on(Events.InteractionCreate, async interaction => {
+  onceReply(interaction);
+
   // Gestion des modals (config embeds tickets)
   if (interaction.isModalSubmit() && interaction.customId.startsWith('ticket_embed_modal_')) {
     try {
@@ -276,55 +360,6 @@ client.on(Events.GuildCreate, guild => {
   fetchAndCacheInvites(guild).catch(() => {});
 });
 
-// Événement : Changement de pseudo
-client.on(Events.GuildMemberUpdate, (oldMember, newMember) => {
-  if (oldMember.user.username !== newMember.user.username) {
-    addPreviousName(newMember.user.id, oldMember.user.username);
-    console.log(`Pseudo changé: ${oldMember.user.username} -> ${newMember.user.username}`);
-  }
-});
-
-// Événement : Utilisateur rejoint un serveur (enregistrer le pseudo actuel)
-client.on(Events.GuildMemberAdd, member => {
-  addPreviousName(member.user.id, member.user.username);
-});
-
-// Événement : Détection AFK
-client.on(Events.MessageCreate, async message => {
-  if (message.author.bot) return;
-
-  // Vérifier si l'auteur était AFK
-  const authorData = getUserData(message.author.id);
-  if (authorData.afk) {
-    delete authorData.afk;
-    saveUserData(message.author.id, authorData);
-    
-    try {
-      const reply = await message.reply(`Bienvenue ! Tu n'es plus AFK.`);
-      setTimeout(() => reply.delete().catch(() => {}), 5000);
-    } catch {}
-  }
-
-  // Vérifier si quelqu'un mentionne un utilisateur AFK
-  if (message.mentions.users.size > 0) {
-    for (const [id, user] of message.mentions.users) {
-      if (user.bot) continue;
-      
-      const userData = getUserData(id);
-      if (userData.afk) {
-        const duration = Date.now() - userData.afk.timestamp;
-        const minutes = Math.floor(duration / 60000);
-        const timeStr = minutes > 0 ? `depuis ${minutes}min` : 'à l\'instant';
-        
-        try {
-          const reply = await message.reply(`${user} est AFK: ${userData.afk.reason} (${timeStr})`);
-          setTimeout(() => reply.delete().catch(() => {}), 10000);
-        } catch {}
-      }
-    }
-  }
-});
-
 // Événement : Bot quitte un serveur
 client.on(Events.GuildDelete, guild => {
   console.log(`\n⚠️ BOT RETIRÉ D'UN SERVEUR`);
@@ -333,6 +368,7 @@ client.on(Events.GuildDelete, guild => {
 
 // Événement : Membre rejoint le serveur
 client.on(Events.GuildMemberAdd, async member => {
+  addPreviousName(member.user.id, member.user.username);
   const { getGuildData } = await import('./utils/database.js');
   const { sendLog } = await import('./utils/logs.js');
   const { checkAntiraid } = await import('./utils/antiraid.js');
@@ -439,6 +475,9 @@ client.on(Events.MessageDelete, async message => {
 
 // Événement : Membre mis à jour (nickname, roles)
 client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+  if (oldMember.user.username !== newMember.user.username) {
+    addPreviousName(newMember.user.id, oldMember.user.username);
+  }
   const { sendLog } = await import('./utils/logs.js');
   
   // Log nickname
@@ -513,6 +552,33 @@ client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
 // Événement : Message reçu
 client.on(Events.MessageCreate, async message => {
   if (message.author.bot) return;
+  onceReply(message);
+
+  // Détection AFK
+  const authorData = getUserData(message.author.id);
+  if (authorData.afk) {
+    delete authorData.afk;
+    saveUserData(message.author.id, authorData);
+    try {
+      const reply = await message.reply(`Bienvenue ! Tu n'es plus AFK.`);
+      setTimeout(() => reply.delete().catch(() => {}), 5000);
+    } catch {}
+  }
+  if (message.mentions.users.size > 0) {
+    for (const [id, user] of message.mentions.users) {
+      if (user.bot) continue;
+      const userData = getUserData(id);
+      if (userData.afk) {
+        const duration = Date.now() - userData.afk.timestamp;
+        const minutes = Math.floor(duration / 60000);
+        const timeStr = minutes > 0 ? `depuis ${minutes}min` : 'à l\'instant';
+        try {
+          const reply = await message.reply(`${user} est AFK: ${userData.afk.reason} (${timeStr})`);
+          setTimeout(() => reply.delete().catch(() => {}), 10000);
+        } catch {}
+      }
+    }
+  }
 
   // === GESTION DES MPS (bot perso) ===
   if (!message.guild) {

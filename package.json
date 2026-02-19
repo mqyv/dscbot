@@ -13,10 +13,10 @@
     "deploy": "node deploy-commands.js",
     "clear:commands": "node clear-commands.js",
     "deploy:full": "node clear-commands.js && node deploy-commands.js",
-    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:start": "pm2 delete dscbot 2>/dev/null; pm2 start src/index.js --name dscbot",
     "pm2:stop": "pm2 stop dscbot",
     "pm2:restart": "pm2 restart dscbot",
-    "pm2:logs": "pm2 logs dscbot"
+    "pm2:logs": "pm2 logs dscbot","pm2:kill":"pm2 delete all 2>/dev/null; rm -f /tmp/dscbot.lock .dscbot.lock"
   },
   "keywords": [
     "discord",
