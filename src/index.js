@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Collection, Events, VoiceState } from 'discord.js';
+import { Client, GatewayIntentBits, Collection, Events, VoiceState, Options } from 'discord.js';
 import { config } from 'dotenv';
 import { readdirSync, writeFileSync, readFileSync, existsSync, unlinkSync, openSync, closeSync, writeSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -62,7 +62,7 @@ const DM_COMMANDS = [
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Forcer 1 SEUL shard/connexion (évite x5)
+// Forcer 1 shard + cache limité (mémoire ~20MB au lieu de 100+)
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -74,6 +74,17 @@ const client = new Client({
   ],
   shards: 0,
   shardCount: 1,
+  makeCache: Options.cacheWithLimits({
+    ...Options.DefaultMakeCacheSettings,
+    MessageManager: 50,
+    GuildMemberManager: 100,
+    PresenceManager: 0,
+    ReactionManager: 0,
+  }),
+  sweepers: {
+    ...Options.DefaultSweeperSettings,
+    messages: { interval: 60, lifetime: 120 },
+  },
 });
 
 client.commands = new Collection();
