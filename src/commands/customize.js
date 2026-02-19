@@ -49,7 +49,7 @@ export async function restoreBotActivity(client) {
   if (activityStr) {
     const act = parseActivityString(activityStr);
     if (act) {
-      Promise.resolve(setBotActivity(client, act)).catch(() => {});
+      try { setBotActivity(client, act); } catch {}
     }
   }
 }

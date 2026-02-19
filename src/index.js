@@ -62,6 +62,7 @@ const DM_COMMANDS = [
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Forcer 1 SEUL shard/connexion (évite x5)
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -71,6 +72,8 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildInvites,
   ],
+  shards: 0,
+  shardCount: 1,
 });
 
 client.commands = new Collection();
@@ -197,6 +200,10 @@ function buildContextFromInteraction(interaction) {
 
   return { messageLike, args };
 }
+
+// Nettoyer les listeners en double (sécurité)
+client.removeAllListeners(Events.MessageCreate);
+client.removeAllListeners(Events.InteractionCreate);
 
 // Événement : Gestion des interactions (slash commands + boutons + select + modals)
 client.on(Events.InteractionCreate, async interaction => {
