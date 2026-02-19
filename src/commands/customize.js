@@ -48,7 +48,9 @@ export async function restoreBotActivity(client) {
   const activityStr = globalData?.settings?.botActivity;
   if (activityStr) {
     const act = parseActivityString(activityStr);
-    if (act) setBotActivity(client, act).catch(() => {});
+    if (act) {
+      Promise.resolve(setBotActivity(client, act)).catch(() => {});
+    }
   }
 }
 
